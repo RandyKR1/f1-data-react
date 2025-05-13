@@ -1,15 +1,18 @@
 import './App.css'
+import { Route, Routes } from 'react-router-dom'
 import Drivers from './components/Drivers'
 import Meeting from './components/Meeting'
 import Session from './components/Session'
+import Home from './components/Home'
 
 function App() {
 return (
-    <>
-      <Drivers />
-      <Session />
-      <Meeting />
-    </>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/drivers" element={<Drivers />} /> 
+      <Route path="/sessions" element={<Session />} /> 
+      <Route path="/meetings" element={<Meeting />} /> 
+    </Routes>
   )
 }
 
