@@ -22,4 +22,3 @@ A lightweight F1 telemetry and race data viewer built using the [OpenF1 API](htt
 ```bash
 npm install     # sets up dependencies
 npm run dev     # starts the local dev server
-
