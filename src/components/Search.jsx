@@ -57,8 +57,9 @@ const Search = () => {
     useEffect(() => {
         const fetchDrivers = async () => {
             if(!selectedSession) return;
-            const data = getDrivers();
+            const data = await getDrivers();
             setDrivers(data);
+            console.log(data)
         };
         fetchDrivers();
     }, [selectedSession]);
@@ -97,7 +98,7 @@ const Search = () => {
             <option value="">Select a session</option>
             {sessions.map((session) => (
               <option key={session.session_key} value={session.session_key}>
-                {new Date(session.date).toLocaleDateString()} – {session.meeting_name || session.session_type}
+                {new Date(session.date_start).toLocaleDateString()} – {session.meeting_name || session.session_type}
               </option>
             ))}
           </select>
