@@ -5,16 +5,20 @@ import React, { useEffect, useState } from "react";
 const Drivers = () => {
     const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sessionKey, setSessionKey] = useState('');
 
     useEffect(() => {
+        if (!sessionKey) return;
+
         const fetchDrivers = async () => {
-            const data = await getDrivers();
+            const data = await getDrivers(sessionKey);
             setDrivers(data);
+            console.log(data);
             setLoading(false);
         };
     
         fetchDrivers();
-    }, [])
+    }, [sessionKey])
 
 
     const filteredDriverLineup = filterDupes(drivers, "broadcast_name");
@@ -28,15 +32,6 @@ const Drivers = () => {
 
     return(
         <div>
-            <h1>Drivers List below</h1>
-
-            <ul>
-                {filteredDriverLineup.map((driver) => 
-                    <li key={driver.broadcast_name}>
-                        {driver.broadcast_name || `Driver number ${driver.driver_number}`}
-                    </li>
-                )}
-            </ul>
         </div>
     )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDrivers, getSessions, getMeetings } from "../api";
+import { filterDupes } from "../utilities";
 
 //Creating Search component that allows users to narrow down their search first by location/track, then by year, then session, then optionally driver.
 
@@ -45,6 +46,7 @@ const Search = () => {
     useEffect(() => {
         const fetchSessions = async () => {
             if (!selectedTrack || !selectedYear) return;
+            console.log("Track:", selectedTrack)
             const data = await getSessions();
             const filtered = data.filter((sess) => 
                 sess.location === selectedTrack && new Date(sess.date_start).getFullYear() === parseInt(selectedYear)
@@ -55,11 +57,15 @@ const Search = () => {
     }, [selectedTrack, selectedYear]);
 
     useEffect(() => {
+        if(!selectedSession) return;
+        
         const fetchDrivers = async () => {
-            if(!selectedSession) return;
-            const data = await getDrivers();
+                 console.log("Session:", selectedSession)
+            const data = await getDrivers(selectedSession);
+                console.log("Drivers fetched:", data);
+            const filteredDrivers = filterDupes(data, "broadcast_name")
+            console.log(filteredDrivers)
             setDrivers(data);
-            console.log(data)
         };
         fetchDrivers();
     }, [selectedSession]);
@@ -112,8 +118,8 @@ const Search = () => {
           <select value={selectedDriver} onChange={(e) => setSelectedDriver(e.target.value)}>
             <option value="">All Drivers</option>
             {drivers.map((driver) => (
-              <option key={driver.driver_number} value={driver.driver_number}>
-                {driver.full_name || driver.driver_number}
+              <option key={driver.broadcast_name} value={driver.broadcast_name}>
+                {`${driver.last_name} (${driver.driver_number})`  || driver.driver_number}
               </option>
             ))}
           </select>

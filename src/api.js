@@ -20,7 +20,7 @@ async function fetchData(endpoint, label = 'Data') {
 };
 
 /**api calls to all endpoints*/
-export const getDrivers = () => fetchData("drivers", "Driver Data");
+export const getDrivers = (sessionKey) => fetchData(`drivers?session_key=${sessionKey}`, "Driver Data");
 export const getMeetings = () => fetchData("meetings", "Meeting Data");
 export const getSessions = () => fetchData("sessions", "Sessions Data");
 export const getLocation = (sessionKey) => fetchData(`location?session_key=${sessionKey}`, "Location Data");

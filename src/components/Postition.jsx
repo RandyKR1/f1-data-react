@@ -24,7 +24,7 @@ const Position = () => {
         return <p>Loading Position Data...</p>
     }
 
-    const filteredPositionData = filterDupes(position, "session_key");
+    // const filteredPositionData = filterDupes(position, "session_key");
 
     return(
         <div>
