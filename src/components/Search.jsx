@@ -15,12 +15,10 @@ const Search = () => {
     const [meetings, setMeetings] = useState([]);
     const [years, setYears] = useState([])
     const [sessions, setSessions] = useState([]);
-    const [drivers, setDrivers] = useState([]);
 
     const [selectedTrack, setSelectedTrack] = useState("");
     const [selectedYear, setSelectedYear] = useState("");
     const [selectedSession, setSelectedSession] = useState("");
-    const [selectedDriver, setSelectedDriver] = useState("");
 
     useEffect(() => {
         const fetchMeeting = async () => {
@@ -56,19 +54,7 @@ const Search = () => {
         fetchSessions();
     }, [selectedTrack, selectedYear]);
 
-    useEffect(() => {
-        if(!selectedSession) return;
-        
-        const fetchDrivers = async () => {
-                 console.log("Session:", selectedSession)
-            const data = await getDrivers(selectedSession);
-                console.log("Drivers fetched:", data);
-            const filteredDrivers = filterDupes(data, "broadcast_name")
-            console.log(filteredDrivers)
-            setDrivers(data);
-        };
-        fetchDrivers();
-    }, [selectedSession]);
+
 
   return (
     <div>
@@ -109,28 +95,6 @@ const Search = () => {
             ))}
           </select>
         </>
-      )}
-
-      {/* Driver Dropdown */}
-      {selectedSession && (
-        <>
-          <label>Driver:</label>
-          <select value={selectedDriver} onChange={(e) => setSelectedDriver(e.target.value)}>
-            <option value="">All Drivers</option>
-            {drivers.map((driver) => (
-              <option key={driver.broadcast_name} value={driver.broadcast_name}>
-                {`${driver.last_name} (${driver.driver_number})`  || driver.driver_number}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-
-      {/* Placeholder for next step (data type selection) */}
-      {selectedSession && (
-        <div>
-          <h4>Select data type next...</h4>
-        </div>
       )}
     </div>
   );
