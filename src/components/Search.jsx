@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getDrivers, getSessions, getMeetings } from "../api";
-import { filterDupes } from "../utilities";
+import { getSessions, getMeetings } from "../api";
+import { Navigate, useNavigate } from "react-router-dom";
 
 //Creating Search component that allows users to narrow down their search first by location/track, then by year, then session, then optionally driver.
 
@@ -19,6 +19,8 @@ const Search = () => {
     const [selectedTrack, setSelectedTrack] = useState("");
     const [selectedYear, setSelectedYear] = useState("");
     const [selectedSession, setSelectedSession] = useState("");
+
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchMeeting = async () => {
@@ -96,6 +98,14 @@ const Search = () => {
           </select>
         </>
       )}
+
+      {selectedSession && (
+        <button onClick={() => navigate(`race-results/${selectedSession}`)}>
+            View Race Data
+        </button>
+      )
+
+      }
     </div>
   );
 };
