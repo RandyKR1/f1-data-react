@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getSessions } from "../api";
+import TeamRadio from "./TeamRadio";
 
 const RaceResults = () => {
   const { sessionKey } = useParams();
@@ -29,6 +30,7 @@ return (
         <p>Track: {sessionData.circuit_short_name}</p>
         <p>Session Name: {sessionData.session_name}</p>
         <p>Date: {new Date(sessionData.date_start).toLocaleDateString()}</p>
+        <div><TeamRadio sessionKey={sessionKey} /></div>
         {/* Other session info */}
       </>
     ) : (
