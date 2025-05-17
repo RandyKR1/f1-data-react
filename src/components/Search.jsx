@@ -100,7 +100,7 @@ const Search = () => {
       )}
 
       {selectedSession && (
-        <button onClick={() => navigate(`race-results/${selectedSession}`)}>
+        <button onClick={() => navigate(`/race-results/${selectedSession}`)}>
             View Race Data
         </button>
       )
