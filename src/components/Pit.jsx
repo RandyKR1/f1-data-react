@@ -1,30 +1,27 @@
 import React, {useState, useEffect} from "react";
 import { getPit } from "../api";
-import { filterDupes } from "../utilities";
 
-const Pit = () => {
+const Pit = ({sessionKey}) => {
     const [pit, setPit] = useState([])
     const [loading, setLoading] = useState(true);
-    const [session_key, setSessionKey] = useState('');
 
     useEffect(() => {
-        if (!session_key) return;
+        if (!sessionKey) return;
 
         const fetchPit = async () => {
-            const data = await getPit(session_key);
+            const data = await getPit(sessionKey);
             setPit(data);
             setLoading(false);
         }
         fetchPit();
 
-    }, [session_key]);
+    }, [sessionKey]);
 
 
     if(loading){
         return <p>Loading Pit Data...</p>
     }
 
-    const filteredPitData = filterDupes(pit, "session_key");
 
     return(
         <div>

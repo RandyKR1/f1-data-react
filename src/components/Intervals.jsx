@@ -1,16 +1,16 @@
 import React, {useState, useEffect} from "react";
 import { getIntervals } from "../api";
 
-const Intervals = () => {
+const Intervals = ({sessionKey}) => {
     const [intervals, setIntervals] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [sessionKey, setSessionKey] = useState('');
 
     useEffect(() => {
         const fetchIntervalData = async () => {
             if (!sessionKey) return;
 
             const data = await getIntervals(sessionKey);
+            console.log("Interval Data:", data);
             setIntervals(data);
             setLoading(false);
         }
@@ -21,8 +21,6 @@ const Intervals = () => {
     if(loading){
         return <p>Loading Intervals...</p>
     }
-
-    const filteredIntervals = filterDupes(intervals, "session_key");
 
     return(
         <></>

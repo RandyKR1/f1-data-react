@@ -1,30 +1,27 @@
 import React, {useState, useEffect} from "react";
 import { getRaceControl } from "../api";
-import { filterDupes } from "../utilities";
 
-const RaceControl = () => {
+const RaceControl = ({sessionKey}) => {
     const [raceControl, setRaceControl] = useState([])
     const [loading, setLoading] = useState(true);
-    const [session_key, setSessionKey] = useState('');
 
     useEffect(() => {
-        if (!session_key) return;
+        if (!sessionKey) return;
 
         const fetchRaceControl = async () => {
-            const data = await getRaceControl(session_key);
+            const data = await getRaceControl(sessionKey);
+            console.log("Race Control Data:", data)
             setRaceControl(data);
             setLoading(false);
         }
         fetchRaceControl();
 
-    }, [session_key]);
+    }, [sessionKey]);
 
 
     if(loading){
         return <p>Loading Race Control Data...</p>
     }
-
-    const filteredRaceControl = filterDupes(raceControl, "session_key");
 
     return(
         <div>

@@ -2,29 +2,27 @@ import React, {useState, useEffect} from "react";
 import { getStints } from "../api";
 import { filterDupes } from "../utilities";
 
-const Stints = () => {
+const Stints = ({sessionKey}) => {
     const [stints, setStints] = useState([])
     const [loading, setLoading] = useState(true);
-    const [session_key, setSessionKey] = useState('');
 
     useEffect(() => {
-        if (!session_key) return;
+        if (!sessionKey) return;
 
         const fetchStints = async () => {
-            const data = await getStints(session_key);
+            const data = await getStints(sessionKey);
+            console.log("Stint Data:", data)
             setStints(data);
             setLoading(false);
         } 
-        fetchRaceControl();
+        fetchStints();
 
-    }, [session_key]);
+    }, [sessionKey]);
 
 
     if(loading){
         return <p>Loading Stints Data...</p>
     }
-
-    const filteredStints = filterDupes(stints, "session_key");
 
     return(
         <div>

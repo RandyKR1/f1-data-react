@@ -1,6 +1,5 @@
 import React, {useState, useEffect} from "react";
 import { getTeamRadio } from "../api";
-import { filterDupes } from "../utilities";
 
 const TeamRadio = ({sessionKey}) => {
     const [teamRadio, setTeamRadio] = useState([])
@@ -24,22 +23,15 @@ const TeamRadio = ({sessionKey}) => {
         return <p>Loading Team Radio Data...</p>
     }
 
-    // const filteredTeamRadio = filterDupes(teamRadio, "session_key");
-
     console.log("Team Radio Data:", teamRadio)
 
     return(
         <div>
-            {/* {filteredTeamRadio.length === 0 ? (
-                <p>No Team Radio Data For This Session.</p>
-            ) : ( */}
-                {teamRadio.map((tr, index) =>
+            {teamRadio.map((tr, index) =>
                 <p key={index}>
                     <strong>Driver: {tr.driver_number}</strong> <br/> 
                     <a href={tr.recording_url} target="_blank" rel="noreferrer">Listen to Radio</a>
                 </p>)}
-            {/* )
-            } */}
         </div>
     )
 }

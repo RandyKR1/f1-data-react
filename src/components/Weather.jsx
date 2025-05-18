@@ -1,33 +1,43 @@
 import React, {useState, useEffect} from "react";
 import { getWeather } from "../api";
-import { filterDupes } from "../utilities";
 
-const Weather = () => {
+const Weather = ({sessionKey}) => {
     const [weather, setWeather] = useState([])
     const [loading, setLoading] = useState(true);
-    const [session_key, setSessionKey] = useState('');
 
     useEffect(() => {
-        if (!session_key) return;
+        if (!sessionKey) return;
 
         const fetchWeather = async () => {
-            const data = await getWeather(session_key);
+            const data = await getWeather(sessionKey);
+            console.log("Weather Data:", data)
             setWeather(data);
             setLoading(false);
         }
         fetchWeather();
+    }, [sessionKey]);
 
-    }, [session_key]);
-
-
+        
     if(loading){
         return <p>Loading Weather Data...</p>
     }
-
-    const filteredTeamRadio = filterDupes(weather, "session_key");
+   
 
     return(
         <div>
+            {/* {weather.map((w, index) =>
+                <p key={index}>
+                    <strong>Driver: {w.driver_number}</strong> <br/> 
+                    <a href={w.recording_url} target="_blank" rel="noreferrer">Listen to Radio</a>
+                </p>)} 
+                
+                I want to display the highs and lows or averages of: 
+                air_temperature
+                humidity
+                wind_speed
+                track_temperature
+
+                */}
         </div>
     )
 }

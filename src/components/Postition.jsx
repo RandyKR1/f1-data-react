@@ -1,30 +1,27 @@
 import React, {useState, useEffect} from "react";
 import { getPosition } from "../api";
-import { filterDupes } from "../utilities";
 
-const Position = () => {
+const Position = ({sessionKey}) => {
     const [position, setPosition] = useState([])
     const [loading, setLoading] = useState(true);
-    const [session_key, setSessionKey] = useState('');
 
     useEffect(() => {
-        if (!session_key) return;
+        if (!sessionKey) return;
 
         const fetchPosition = async () => {
-            const data = await getPosition(session_key);
+            const data = await getPosition(sessionKey);
+            console.log("Position Data:", data);
             setPosition(data);
             setLoading(false);
         }
         fetchPosition();
 
-    }, [session_key]);
+    }, [sessionKey]);
 
 
     if(loading){
         return <p>Loading Position Data...</p>
     }
-
-    // const filteredPositionData = filterDupes(position, "session_key");
 
     return(
         <div>
