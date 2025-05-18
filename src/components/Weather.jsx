@@ -10,34 +10,36 @@ const Weather = ({sessionKey}) => {
 
         const fetchWeather = async () => {
             const data = await getWeather(sessionKey);
-            console.log("Weather Data:", data)
             setWeather(data);
             setLoading(false);
         }
         fetchWeather();
     }, [sessionKey]);
 
+    console.log("Weather Data:", weather)
+
         
     if(loading){
         return <p>Loading Weather Data...</p>
     }
    
+    // NEXT
+    // see utility for getMaxBy() example and implement here
 
     return(
         <div>
-            {/* {weather.map((w, index) =>
+            {weather.map((w, index) =>
                 <p key={index}>
-                    <strong>Driver: {w.driver_number}</strong> <br/> 
-                    <a href={w.recording_url} target="_blank" rel="noreferrer">Listen to Radio</a>
+                    <strong>Temp: {w.air_temperature}</strong> <br/> 
                 </p>)} 
                 
-                I want to display the highs and lows or averages of: 
+                {/* I want to display the highs and lows or averages of: 
                 air_temperature
                 humidity
                 wind_speed
-                track_temperature
+                track_temperature */}
 
-                */}
+               
         </div>
     )
 }
