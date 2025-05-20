@@ -35,3 +35,11 @@ export const getAverageBy = (data, key) => {
   const total = data.reduce((sum, item) => sum + (item[key] ?? 0), 0);
   return total / data.length;
 };
+
+export const toMPH = (kph) => {
+    return (kph * 0.621371).toFixed(1);
+}
+
+export const  toFahrenheit = (celsius) => {
+    return ((celsius * 9) / 5 + 32).toFixed(1);
+}
