@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from "react";
 import { getWeather } from "../api";
+import { getMaxBy } from "../utilities";
 
 const Weather = ({sessionKey}) => {
     const [weather, setWeather] = useState([])
@@ -23,14 +24,13 @@ const Weather = ({sessionKey}) => {
         return <p>Loading Weather Data...</p>
     }
    
-    // NEXT
-    // see utility for getMaxBy() example and implement here
+    const maxTemp = getMaxBy(weather, "air_temperature");
 
     return(
         <div>
             {weather.map((w, index) =>
                 <p key={index}>
-                    <strong>Temp: {w.air_temperature}</strong> <br/> 
+                    <strong>Max Temp: {maxTemp?.air_temperature}</strong> <br/> 
                 </p>)} 
                 
                 {/* I want to display the highs and lows or averages of: 
