@@ -11,7 +11,7 @@ import Intervals from "./Intervals";
 import Pit from "./Pit";
 import CarData from "./CarData";
 
-const RaceResults = () => {
+const SessionResults = () => {
   const { sessionKey } = useParams();
   const [sessionData, setSessionData] = useState(null);
 
@@ -32,13 +32,17 @@ const RaceResults = () => {
 
 return (
   <div>
-    <h2>Race Results</h2>
+    <h2>Session Results</h2>
     {sessionData ? (
       <>
         <p>Track: {sessionData.circuit_short_name}</p>
         <p>Session Name: {sessionData.session_name}</p>
         <p>Date: {new Date(sessionData.date_start).toLocaleDateString()}</p>
         <div><Weather sessionKey={sessionKey} /></div>
+
+
+
+        
         {/* <div><Position sessionKey={sessionKey} /></div>
         <div><Laps sessionKey={sessionKey} /></div>
         <div><Intervals sessionKey={sessionKey} /></div>
@@ -58,4 +62,4 @@ return (
 
 };
 
-export default RaceResults;
+export default SessionResults;
