@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
 import { getWeather } from "../api";
-import { getMaxBy, toFahrenheit, toMPH } from "../utilities";
+import { getMaxBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../utilities";
 
 const Weather = ({sessionKey}) => {
     const [weather, setWeather] = useState([])
@@ -17,39 +17,42 @@ const Weather = ({sessionKey}) => {
         fetchWeather();
     }, [sessionKey]);
 
-    console.log("Weather Data:", weather[0])
+    // console.log("Weather Data:", weather)
 
         
     if(loading){
         return <p>Loading Weather Data...</p>
     }
-   
+    
     const maxAirTempCel = getMaxBy(weather, "air_temperature")
         const maxAirTempFar = toFahrenheit(maxAirTempCel.air_temperature)
+
     const maxTrackTempCel = getMaxBy(weather, "track_temperature");
         const maxTrackTempFar = toFahrenheit(maxTrackTempCel.track_temperature)
+
     const maxWindSpeed = getMaxBy(weather, "wind_speed")
         const maxWindSpeedMPH = toMPH(maxWindSpeed.wind_speed);
+        const windDirection = getWindDirection(maxWindSpeed.wind_direction)
 
-    console.log("Max Air Temp Celcius:", maxAirTempCel.air_temperature)
-    console.log("Max Air Temp Farenheit:", maxAirTempFar)
-    console.log("Max Track Temp:", maxTrackTempCel.air_temperature)
-    console.log("Max Wind Speed:", maxWindSpeedMPH)
+    const humidity = getAverageBy(weather, "humidity");
+
+    const rain = rainfall(weather, "rainfall")
+
+    // console.log("Max Air Temp Celcius:", maxAirTempCel.air_temperature)
+    // console.log("Max Air Temp Farenheit:", maxAirTempFar)
+    // console.log("Max Track Temp:", maxTrackTempCel.air_temperature)
+    // console.log("Max Wind Speed:", maxWindSpeedMPH)
+    // console.log("Rainfall:", rain)
     
 
     return(
         <div>
-            <p><strong>Max Air Temp:</strong> {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
-            <p><strong>Max Track Temp:</strong> {maxTrackTempCel?.wind_speed}°C / {maxTrackTempFar}°F</p>
-            <p><strong>Max Wind Speed:</strong> {maxWindSpeed?.wind_speed}°C / {maxWindSpeedMPH}°F</p>
-                
-                {/* I want to display the highs and lows or averages of: 
-                air_temperature
-                humidity
-                wind_speed
-                track_temperature */}
-
-               
+            <p>Max Air Temp: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
+            <p>Max Track Temp: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
+            <p>Max Wind Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
+            <p>Wind Direction: {windDirection}</p>
+            <p>Humidity: {humidity}%</p>
+            <p>Rain During Session?: {rain}</p>     
         </div>
     )
 }

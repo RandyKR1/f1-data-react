@@ -39,14 +39,15 @@ return (
         <p>Session Name: {sessionData.session_name}</p>
         <p>Date: {new Date(sessionData.date_start).toLocaleDateString()}</p>
         <div><Weather sessionKey={sessionKey} /></div>
-
+        <br/>
+        <div><TeamRadio sessionKey={sessionKey} /></div> 
 
 
         
         {/* <div><Position sessionKey={sessionKey} /></div>
         <div><Laps sessionKey={sessionKey} /></div>
         <div><Intervals sessionKey={sessionKey} /></div>
-        <div><TeamRadio sessionKey={sessionKey} /></div> 
+        
         <div><RaceControl sessionKey={sessionKey} /></div>
         <div><Stints sessionKey={sessionKey} /></div>
         <div><Pit sessionKey={sessionKey}/></div>
