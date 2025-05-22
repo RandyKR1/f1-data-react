@@ -19,8 +19,8 @@ const Position = ({sessionKey}) => {
     }, [sessionKey]);
 
 
-    if(loading){
-        return <p>Loading Position Data...</p>
+    if (loading || !drivers.position) {
+        return <p>Loading Position Data...</p>;
     }
 
     return(

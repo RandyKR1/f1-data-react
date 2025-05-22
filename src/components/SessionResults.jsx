@@ -41,7 +41,9 @@ return (
         <div><Weather sessionKey={sessionKey} /></div>
         <br/>
         <div><TeamRadio sessionKey={sessionKey} /></div> 
-
+        <br/>
+        <div><Pit sessionKey={sessionKey}/></div>
+        <div><Stints sessionKey={sessionKey} /></div>
 
         
         {/* <div><Position sessionKey={sessionKey} /></div>
@@ -49,8 +51,8 @@ return (
         <div><Intervals sessionKey={sessionKey} /></div>
         
         <div><RaceControl sessionKey={sessionKey} /></div>
-        <div><Stints sessionKey={sessionKey} /></div>
-        <div><Pit sessionKey={sessionKey}/></div>
+        
+        
         <div><CarData sessionKey={sessionKey} /></div> */}
                 {/* Think about displaying these in drivers page only */}
 

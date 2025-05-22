@@ -19,8 +19,8 @@ const RaceControl = ({sessionKey}) => {
     }, [sessionKey]);
 
 
-    if(loading){
-        return <p>Loading Race Control Data...</p>
+    if (loading || !raceControl.length) {
+        return <p>Loading Race Control Data...</p>;
     }
 
     return(

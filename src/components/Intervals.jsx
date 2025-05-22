@@ -18,7 +18,7 @@ const Intervals = ({sessionKey}) => {
         fetchIntervalData();
     }, [sessionKey]);
 
-    if(loading){
+    if(loading || !intervals.length){
         return <p>Loading Intervals...</p>
     }
 

@@ -1,5 +1,4 @@
 import { getDrivers } from "../api";
-import { filterDupes } from "../utilities";
 import React, { useEffect, useState } from "react";
 
 const Drivers = () => {
@@ -20,13 +19,7 @@ const Drivers = () => {
         fetchDrivers();
     }, [sessionKey])
 
-
-    const filteredDriverLineup = filterDupes(drivers, "broadcast_name");
-
-
-
-
-    if(loading){
+    if(loading || !drivers.length){
         return <p>Loading Drivers...</p>
     }
 

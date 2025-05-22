@@ -19,7 +19,7 @@ const Laps = ({sessionKey}) => {
     }, [sessionKey]);
 
 
-    if(loading){
+    if(loading || !laps.length){
         return <p>Loading Lap Data...</p>
     }
 

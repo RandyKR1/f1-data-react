@@ -10,7 +10,7 @@ const Session = () => {
         const fetchSession = async () => {
             const data = await getSessions();
             setSession(data);
-            console.log(data)
+            // console.log(data)
             setLoading(false);
         }
 
@@ -19,11 +19,10 @@ const Session = () => {
 
     const filteredSession = filterDupes(session, "session_key")
 
-    if(loading){
-        return <p>Loading Sessions...</p>
+    if (loading || !session.length) {
+        return <p>Loading Session Data...</p>;
     }
 
-    
     return(
         <div>
             <h1>Sessions</h1>

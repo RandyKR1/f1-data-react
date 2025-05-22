@@ -62,3 +62,4 @@ export const rainfall = (data, key) => {
     if (!data.length) return null;
     return data.some(item => item[key] === 1) ? "Yes" : "No";
 };
+

@@ -18,7 +18,7 @@ const CarData = ({sessionKey}) => {
         fetchCarData();
     }, [sessionKey]);
 
-    if(loading){
+    if(loading || !carData.length){
         return <p>Loading drivers...</p>
     }
 

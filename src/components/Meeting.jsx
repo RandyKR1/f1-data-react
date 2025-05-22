@@ -17,8 +17,8 @@ const Meeting = () => {
         fetchMeeting();
     }, []);
 
-    if(loading){
-        return <p>Loading Meetings...</p>
+    if (loading || !meeting.length) {
+        return <p>Loading Meeting Data...</p>;
     }
 
     const filteredMeetings = filterDupes(meeting, "meeting_key")

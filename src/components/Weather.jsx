@@ -20,10 +20,10 @@ const Weather = ({sessionKey}) => {
     // console.log("Weather Data:", weather)
 
         
-    if(loading){
-        return <p>Loading Weather Data...</p>
+    if (loading || !weather.length) {
+        return <p>Loading Weather Data...</p>;
     }
-    
+
     const maxAirTempCel = getMaxBy(weather, "air_temperature")
         const maxAirTempFar = toFahrenheit(maxAirTempCel.air_temperature)
 

@@ -19,11 +19,12 @@ const Location = () => {
     fetchLocation();
     }, [sessionKey]);
 
-    const filteredLocations = filterDupes(location, "session_key")
-
-    if(loading){
+    if(loading || !location.length){
         return <p>Loading locations...</p>
     }
+
+    const filteredLocations = filterDupes(location, "session_key")
+
 
     return(
         <div>
