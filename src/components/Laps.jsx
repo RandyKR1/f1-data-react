@@ -40,7 +40,7 @@ const Laps = ({sessionKey}) => {
 
     const addNameToLaps = mapDriverNames(laps, drivers)
     const lapsWithName = groupByDriverName(addNameToLaps)
-    console.log("Laps By Name", lapsWithName)
+    // console.log("Laps By Name", lapsWithName)
 
     //find fastest lap 
     const fullLaps = laps.filter(lap => 
@@ -50,7 +50,7 @@ const Laps = ({sessionKey}) => {
     )
     const fastestLap = getMinBy(fullLaps, "lap_duration")
     const formattedFastestLap = lapToMinFormat(fastestLap.lap_duration);
-    console.log("Fastest Lap", formattedFastestLap)
+    // console.log("Fastest Lap", formattedFastestLap)
 
     return(
         <div>

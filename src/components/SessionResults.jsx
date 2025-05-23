@@ -31,38 +31,40 @@ const SessionResults = () => {
   }, [sessionKey]);
 
 return (
-  <div>
-    <h2>Session Results</h2>
+  <div className="min-h-[91vh] p-4 bg-gray-100 overflow-hidden">
+    <h2 className="text-2xl font-bold mb-4">Session Results</h2>
+
     {sessionData ? (
       <>
-        <p>Track: {sessionData.circuit_short_name}</p>
-        <p>Session Name: {sessionData.session_name}</p>
-        <p>Date: {new Date(sessionData.date_start).toLocaleDateString()}</p>
-        <div><Weather sessionKey={sessionKey} /></div>
-        <br/>
-        <div><TeamRadio sessionKey={sessionKey} /></div> 
-        <br/>
-        <div><Stints sessionKey={sessionKey} /></div>
-        <div><Laps sessionKey={sessionKey} /></div>
-        <div><Pit sessionKey={sessionKey}/></div>
+        {/* ✅ Full-width top box */}
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 w-full min-h-[40vh]">
+          <p className="text-lg font-medium">
+            Track: {sessionData.circuit_short_name} | Session: {sessionData.session_name} | Date: {new Date(sessionData.date_start).toLocaleDateString()}
+          </p>
+          <hr />
+        </div>
 
-        
-        {/* <div><Position sessionKey={sessionKey} /></div>
-        
-        <div><Intervals sessionKey={sessionKey} /></div>
-        
-        <div><RaceControl sessionKey={sessionKey} /></div>
-        
-        
-        <div><CarData sessionKey={sessionKey} /></div> */}
-                {/* Think about displaying these in drivers page only */}
-
+        {/* ✅ 3-column grid for smaller boxes below */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <Weather sessionKey={sessionKey} />
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm overflow-hidden">
+            <TeamRadio sessionKey={sessionKey} />
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <Stints sessionKey={sessionKey} />
+            <Laps sessionKey={sessionKey} />
+            <Pit sessionKey={sessionKey} />
+          </div>
+        </div>
       </>
     ) : (
       <p>Loading session data...</p>
     )}
   </div>
 );
+
 
 };
 

@@ -43,7 +43,7 @@ const TeamRadio = ({sessionKey}) => {
 
     const addTeamToTeamRadio = mapDriverNames(teamRadio, drivers)
     const radioByDriver = groupByDriverName(addTeamToTeamRadio)
-    console.log("Radio By Driver:", radioByDriver)
+    // console.log("Radio By Driver:", radioByDriver)
 
     
     return (

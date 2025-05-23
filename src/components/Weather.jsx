@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
 import { getWeather } from "../api";
-import { getMaxBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../utilities";
+import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../utilities";
 
 const Weather = ({sessionKey}) => {
     const [weather, setWeather] = useState([])
@@ -24,10 +24,14 @@ const Weather = ({sessionKey}) => {
         return <p>Loading Weather Data...</p>;
     }
 
+    const minAirTempCel = getMinBy(weather, "air_temperature")
     const maxAirTempCel = getMaxBy(weather, "air_temperature")
         const maxAirTempFar = toFahrenheit(maxAirTempCel.air_temperature)
+        const minAirTempFar = toFahrenheit(minAirTempCel.air_temperature)
 
+    const minTrackTempCel = getMinBy(weather, "track_temperature");    
     const maxTrackTempCel = getMaxBy(weather, "track_temperature");
+        const minTrackTempFar = toFahrenheit(minTrackTempCel.track_temperature)
         const maxTrackTempFar = toFahrenheit(maxTrackTempCel.track_temperature)
 
     const maxWindSpeed = getMaxBy(weather, "wind_speed")
@@ -47,8 +51,10 @@ const Weather = ({sessionKey}) => {
 
     return(
         <div>
-            <p>Max Air Temp: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
-            <p>Max Track Temp: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
+            <p>Air Temp High: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
+            <p>Air Temp Low: {minAirTempCel?.air_temperature}°C / {minAirTempFar}°F</p>
+            <p>Track Temp High: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
+            <p>Track Temp Low: {minTrackTempCel?.track_temperature}°C / {minTrackTempFar}°F</p>
             <p>Max Wind Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
             <p>Wind Direction: {windDirection}</p>
             <p>Humidity: {humidity}%</p>
