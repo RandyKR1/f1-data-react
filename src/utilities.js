@@ -63,3 +63,31 @@ export const rainfall = (data, key) => {
     return data.some(item => item[key] === 1) ? "Yes" : "No";
 };
 
+export const lapToMinFormat = (duration) => {
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.floor(duration % 60);
+        const milliseconds = Math.round((duration % 1) * 1000);
+
+        return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+    };
+
+
+export const mapDriverNames = (data, drivers) => {
+  return data.map((item) => {
+    const driver = drivers.find((d) => d.driver_number === item.driver_number);
+    return {
+      ...item,
+      driver_name: driver?.last_name || "Unknown Driver Name",
+    };
+  });
+};
+
+
+export const groupByDriverName = (dataWithNames) => {
+  return dataWithNames.reduce((acc, item) => {
+    const name = item.driver_name;
+    if (!acc[name]) acc[name] = [];
+    acc[name].push(item);
+    return acc;
+  }, {});
+};

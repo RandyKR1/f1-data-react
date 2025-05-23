@@ -42,12 +42,13 @@ return (
         <br/>
         <div><TeamRadio sessionKey={sessionKey} /></div> 
         <br/>
-        <div><Pit sessionKey={sessionKey}/></div>
         <div><Stints sessionKey={sessionKey} /></div>
+        <div><Laps sessionKey={sessionKey} /></div>
+        <div><Pit sessionKey={sessionKey}/></div>
 
         
         {/* <div><Position sessionKey={sessionKey} /></div>
-        <div><Laps sessionKey={sessionKey} /></div>
+        
         <div><Intervals sessionKey={sessionKey} /></div>
         
         <div><RaceControl sessionKey={sessionKey} /></div>

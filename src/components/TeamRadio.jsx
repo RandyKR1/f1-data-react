@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from "react";
 import { getTeamRadio, getDrivers } from "../api";
+import { mapDriverNames, groupByDriverName } from "../utilities";
 
 const TeamRadio = ({sessionKey}) => {
     const [teamRadio, setTeamRadio] = useState([])
@@ -39,31 +40,15 @@ const TeamRadio = ({sessionKey}) => {
         setExpandedTeam((prev) => (prev === team ? null : team));
     };
 
-    //adds team key to team radio object
-    const addTeamToTeamRadio = teamRadio.map((radio) => {
-        const driver = drivers.find((d) => d.driver_number === radio.driver_number);
-        return{
-            ...radio, team_name: driver?.team_name || "Unkown Team Name"
-        };
-    })
 
-    //loops over addTeamToTeamRadio and creates new result
-    const radioByTeam = addTeamToTeamRadio.reduce((results, radio) => {
-        const team = radio.team_name;
-        if (!results[team]){
-            results[team] = [];
-        }
-    
-        results[team].push(radio);
-        return results;
-    }, {})
-
-    // console.log("Radio By Team:", radioByTeam)
+    const addTeamToTeamRadio = mapDriverNames(teamRadio, drivers)
+    const radioByDriver = groupByDriverName(addTeamToTeamRadio)
+    console.log("Radio By Driver:", radioByDriver)
 
     
     return (
     <div>
-        {Object.entries(radioByTeam).map(([team, radios]) => (
+        {Object.entries(radioByDriver).map(([team, radios]) => (
         <div key={team}>
             <button onClick={() => toggleTeam(team)}>{team}</button>
 

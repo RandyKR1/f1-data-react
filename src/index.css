@@ -12,3 +12,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  .weather, .stints, .team-radios {
+    border: 1px solid white;
+  }
+
