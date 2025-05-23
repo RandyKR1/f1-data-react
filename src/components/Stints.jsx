@@ -69,6 +69,7 @@ const Stints = ({sessionKey}) => {
 
     return(
         <div>
+            <p>Longest Stint: {longestStint.driverName}, {longestStint.stintLength} Laps. ({longestStint.compound})</p>
         </div>
     )
 }
