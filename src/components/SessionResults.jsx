@@ -49,10 +49,10 @@ return (
           <div className="bg-white p-4 rounded-lg shadow-sm">
             <Weather sessionKey={sessionKey} />
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm overflow-hidden">
+          <div className="h-[40vh] overflow-y-auto bg-white p-4 rounded-lg shadow-sm">
             <TeamRadio sessionKey={sessionKey} />
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+          <div className="h-[40vh] overflow-y-auto bg-white p-4 rounded-lg shadow-sm">
             <Stints sessionKey={sessionKey} />
             <Laps sessionKey={sessionKey} />
             <Pit sessionKey={sessionKey} />

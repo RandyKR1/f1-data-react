@@ -6,7 +6,7 @@ const TeamRadio = ({sessionKey}) => {
     const [teamRadio, setTeamRadio] = useState([])
     const [drivers, setDrivers] = useState([])
     const [loading, setLoading] = useState(true);
-    const [expandedTeam, setExpandedTeam] = useState(null); // team dropdown state
+    const [expandedDriver, setExpandedDriver] = useState(null); // team dropdown state
 
     //fetch team radios based on session
     useEffect(() => {
@@ -36,8 +36,8 @@ const TeamRadio = ({sessionKey}) => {
     }
 
     //toggles the team radio dropdown
-    const toggleTeam = (team) => {
-        setExpandedTeam((prev) => (prev === team ? null : team));
+    const toggleTeam = (driver) => {
+        setExpandedDriver((prev) => (prev === driver ? null : driver));
     };
 
 
@@ -48,16 +48,16 @@ const TeamRadio = ({sessionKey}) => {
     
     return (
     <div>
-        {Object.entries(radioByDriver).map(([team, radios]) => (
-        <div key={team}>
-            <button onClick={() => toggleTeam(team)}>{team}</button>
-
-            {expandedTeam === team && (
-            <ul>
+        <strong>Team Radios</strong>
+        <hr />
+        {Object.entries(radioByDriver).map(([driver, radios]) => (
+        <div key={driver} className="pt-[5px]">
+            <button onClick={() => toggleTeam(driver)}>{driver}</button>
+            {expandedDriver === driver && (
+            <ul className="flex flex-col justify-center items-center space-y-2">
                 {radios.map((radio, index) => (
                 <li key={index}>
-                    Driver #{radio.driver_number}
-                    <audio controls src={radio.recording_url} />
+                    <audio controls src={radio.recording_url} className="w-72 md:w-45 lg:w-72"/>
                 </li>
                 ))}
             </ul>
