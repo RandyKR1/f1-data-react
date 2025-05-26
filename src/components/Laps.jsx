@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import { getLaps, getDrivers } from "../api";
-import { getMinBy, lapToMinFormat, mapDriverNames, groupByDriverName } from "../utilities";
+import { getMinBy, lapToMinFormat, mapDriverNames, groupByDriverName, formatRaceTime } from "../utilities";
 
 const Laps = ({sessionKey}) => {
     const [laps, setLaps] = useState([]);
@@ -40,7 +40,28 @@ const Laps = ({sessionKey}) => {
 
     const addNameToLaps = mapDriverNames(laps, drivers)
     const lapsWithName = groupByDriverName(addNameToLaps)
-    // console.log("Laps By Name", lapsWithName)
+    console.log("Laps By Name", lapsWithName)
+
+    const raceLengthPerDriver = Object.entries(lapsWithName).map(([driverName, laps]) => {
+        const raceLength = laps.reduce((sum, l)=> {
+            const firstLapDuration = 
+                l.lap_duration != null 
+                    ? l.lap_duration 
+                    : (l.duration_sector_2 ?? 0) + (l.duration_sector_3 ?? 0);
+                    return sum + firstLapDuration; 
+            }, 0);
+
+            return {
+                driverName,
+                lapCount: laps.length,
+                raceLength
+            };
+        })
+    raceLengthPerDriver.forEach(driver => {
+        const formattedTime = formatRaceTime(driver.raceLength);
+        console.log(`${driver.driverName}: ${formattedTime}`);
+    });
+
 
     //find fastest lap 
     const fullLaps = laps.filter(lap => 

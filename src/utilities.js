@@ -72,6 +72,18 @@ export const lapToMinFormat = (duration) => {
     };
 
 
+export const formatRaceTime = (durationInSeconds) => {
+  const hours = Math.floor(durationInSeconds / 3600);
+  const minutes = Math.floor((durationInSeconds % 3600) / 60);
+  const seconds = Math.floor(durationInSeconds % 60);
+  const milliseconds = Math.round((durationInSeconds % 1) * 1000);
+
+  return `${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds
+    .toString()
+    .padStart(2, '0')}s ${milliseconds.toString().padStart(3, '0')}ms`;
+};
+
+
 export const mapDriverNames = (data, drivers) => {
   return data.map((item) => {
     const driver = drivers.find((d) => d.driver_number === item.driver_number);
