@@ -103,3 +103,15 @@ export const groupByDriverName = (dataWithNames) => {
     return acc;
   }, {});
 };
+
+export const sortRaceResults = (drivers) => {
+  return drivers.sort((a, b) => {
+    // First, compare by lap count (descending)
+    if (b.lapCount !== a.lapCount) {
+      return b.lapCount - a.lapCount;
+    }
+
+    // If lap count is the same, compare by race time (ascending)
+    return a.raceLength - b.raceLength;
+  });
+};

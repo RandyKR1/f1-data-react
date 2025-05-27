@@ -56,6 +56,7 @@ return (
             <Stints sessionKey={sessionKey} />
             <Laps sessionKey={sessionKey} />
             <Pit sessionKey={sessionKey} />
+            <Intervals sessionKey={sessionKey} />
           </div>
         </div>
       </>

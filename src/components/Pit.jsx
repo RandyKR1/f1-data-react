@@ -22,7 +22,7 @@ const Pit = ({sessionKey}) => {
         return <p>Loading Pit Data...</p>
     }
 
-    // console.log("Pit Data:", pit);
+    console.log("Pit Data:", pit);
 
 
     return(
