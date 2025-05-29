@@ -4,14 +4,12 @@ import { getSessions } from "../api";
 import TeamRadio from "./TeamRadio";
 import Weather from "./Weather";
 import Stints from "./Stints";
-import RaceControl from "./RaceControl";
-import Position from "./Postition";
-import Laps from "./Laps";
 import Intervals from "./Intervals";
 import Pit from "./Pit";
-import CarData from "./CarData";
+import FastestLap from "./FastestLap";
+import SessionStandings from "./SessionStandings.jsx";
 
-const SessionResults = () => {
+const Results = () => {
   const { sessionKey } = useParams();
   const [sessionData, setSessionData] = useState(null);
 
@@ -42,6 +40,7 @@ return (
             Track: {sessionData.circuit_short_name} | Session: {sessionData.session_name} | Date: {new Date(sessionData.date_start).toLocaleDateString()}
           </p>
           <hr />
+          <SessionStandings sessionKey={sessionKey} /> 
         </div>
 
         {/* ✅ 3-column grid for smaller boxes below */}
@@ -54,7 +53,7 @@ return (
           </div>
           <div className="h-[40vh] overflow-y-auto bg-white p-4 rounded-lg shadow-sm">
             <Stints sessionKey={sessionKey} />
-            <Laps sessionKey={sessionKey} />
+            <FastestLap sessionKey={sessionKey} />
             <Pit sessionKey={sessionKey} />
             <Intervals sessionKey={sessionKey} />
           </div>
@@ -69,4 +68,4 @@ return (
 
 };
 
-export default SessionResults;
+export default Results;
