@@ -10,7 +10,7 @@ const Session = () => {
         const fetchSession = async () => {
             const data = await getSessions();
             setSession(data);
-            // console.log(data)
+            console.log(data)
             setLoading(false);
         }
 
