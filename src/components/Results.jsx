@@ -7,7 +7,7 @@ import Stints from "./Stints";
 import Intervals from "./Intervals";
 import Pit from "./Pit";
 import FastestLap from "./FastestLap";
-import SessionStandings from "./SessionStandings.jsx";
+import DriverSelector from "./DriverSelector";
 
 const Results = () => {
   const { sessionKey } = useParams();
@@ -35,12 +35,12 @@ return (
     {sessionData ? (
       <>
         {/* ✅ Full-width top box */}
-        <div className="bg-white p-4 rounded-lg shadow-md mb-6 w-full min-h-[40vh]">
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6 w-full h-[40vh] overflow-y-auto">
           <p className="text-lg font-medium">
             Track: {sessionData.circuit_short_name} | Session: {sessionData.session_name} | Date: {new Date(sessionData.date_start).toLocaleDateString()}
           </p>
           <hr />
-          <SessionStandings sessionKey={sessionKey} /> 
+          <DriverSelector sessionKey={sessionKey} />
         </div>
 
         {/* ✅ 3-column grid for smaller boxes below */}
