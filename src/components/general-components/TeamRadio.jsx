@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import { getTeamRadio, getDrivers } from "../api";
-import { mapDriverNames, groupByDriverName } from "../utilities";
+import { getTeamRadio, getDrivers } from "../../api";
+import { mapDriverNames, groupByDriverName } from "../../utilities";
 
 const TeamRadio = ({sessionKey}) => {
     const [teamRadio, setTeamRadio] = useState([])

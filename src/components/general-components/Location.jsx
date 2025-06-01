@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
-import { getLocation } from "../api";
-import { filterDupes } from "../utilities";
+import { getLocation } from "../../api";
+import { filterDupes } from "../../utilities";
 
 const Location = () => {
     const [location, setLocation] = useState([]);

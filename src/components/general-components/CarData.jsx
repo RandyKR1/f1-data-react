@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import { getCarData } from "../api";
+import { getCarData } from "../../api";
 
 const CarData = ({sessionKey}) => {
     const [carData, setCarData] = useState([]);

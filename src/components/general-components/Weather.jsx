@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import { getWeather } from "../api";
-import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../utilities";
+import { getWeather } from "../../api";
+import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../../utilities";
 
 const Weather = ({sessionKey}) => {
     const [weather, setWeather] = useState([])

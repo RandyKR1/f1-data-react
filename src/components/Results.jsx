@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getSessions } from "../api";
-import TeamRadio from "./TeamRadio";
-import Weather from "./Weather";
-import Stints from "./Stints";
-import Intervals from "./Intervals";
-import Pit from "./Pit";
+import TeamRadio from "./general-components/TeamRadio";
+import Weather from "./general-components/Weather";
+import Stints from "./general-components/Stints";
+import Intervals from "./general-components/Intervals";
+import Pit from "./general-components/Pit";
 import FastestLap from "./FastestLap";
 import DriverSelector from "./DriverSelector";
 

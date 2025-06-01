@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import { getPit } from "../api";
+import { getPit } from "../../api";
 
 const Pit = ({sessionKey}) => {
     const [pit, setPit] = useState([])

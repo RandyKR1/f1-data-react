@@ -1,4 +1,4 @@
-import { getDrivers } from "../api";
+import { getDrivers } from "../../api";
 import React, { useEffect, useState } from "react";
 
 const Drivers = () => {

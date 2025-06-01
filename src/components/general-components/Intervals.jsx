@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import { getIntervals } from "../api";
+import { getIntervals } from "../../api";
 
 const Intervals = ({sessionKey}) => {
     const [intervals, setIntervals] = useState([]);

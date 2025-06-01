@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import { getStints, getDrivers } from "../api";
-import { getMaxBy, mapDriverNames, groupByDriverName } from "../utilities";
+import { getStints, getDrivers } from "../../api";
+import { getMaxBy, mapDriverNames, groupByDriverName } from "../../utilities";
 
 const Stints = ({sessionKey}) => {
     const [stints, setStints] = useState([]);

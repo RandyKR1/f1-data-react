@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import { getRaceControl } from "../api";
+import { getRaceControl } from "../../api";
 
 const RaceControl = ({sessionKey}) => {
     const [raceControl, setRaceControl] = useState([])

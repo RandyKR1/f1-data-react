@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import { getSessions } from "../api";
-import { filterDupes } from "../utilities";
+import { getSessions } from "../../api";
+import { filterDupes } from "../../utilities";
 
 const Session = () => {
     const [session, setSession] = useState([]);

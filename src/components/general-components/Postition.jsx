@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import { getPosition } from "../api";
+import { getPosition } from "../../api";
 
 const Position = ({sessionKey}) => {
     const [position, setPosition] = useState([])

@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from "react";
-import { getMeetings } from "../api";
-import { filterDupes } from "../utilities";
+import { getMeetings } from "../../api";
+import { filterDupes } from "../../utilities";
 
 const Meeting = () => {
     const [meeting, setMeeting] = useState([]);
