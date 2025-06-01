@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
-import { getLaps, getDrivers } from "../api";
-import { getMinBy, lapToMinFormat, mapDriverNames, groupByDriverName } from "../utilities";
+import { getLaps, getDrivers } from "../../api";
+import { getMinBy, lapToMinFormat, mapDriverNames, groupByDriverName } from "../../utilities";
 
 const FastestLap = ({sessionKey}) => {
     const [laps, setLaps] = useState([]);

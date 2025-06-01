@@ -1,8 +1,8 @@
 import './App.css'
 import { Route, Routes } from 'react-router-dom'
-import Meeting from './components/general-components/Meeting'
-import Session from './components/general-components/Session'
-import Home from './components/general-components/Home'
+import Meeting from './components/general/Meeting'
+import Session from './components/general/Session'
+import Home from './components/general/Home'
 import Results from './components/Results'
 import DriverResults from './components/DriverResults'
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDrivers } from "../api";
-import { filterDupes } from "../utilities"; // Optional utility
+import { getDrivers } from "../../api";
+import { filterDupes } from "../../utilities"; // Optional utility
 
 const DriverSelector = ({ sessionKey, selectedDriver, setSelectedDriver }) => {
   const [drivers, setDrivers] = useState([]);

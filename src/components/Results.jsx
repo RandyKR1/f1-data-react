@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getSessions } from "../api";
-import TeamRadio from "./general-components/TeamRadio";
-import Weather from "./general-components/Weather";
-import Stints from "./general-components/Stints";
-import Intervals from "./general-components/Intervals";
-import Pit from "./general-components/Pit";
-import FastestLap from "./FastestLap";
-import DriverSelector from "./DriverSelector";
+import TeamRadio from "./general/TeamRadio";
+import Weather from "./general/Weather";
+import Stints from "./general/Stints";
+import Intervals from "./general/Intervals";
+import Pit from "./general/Pit";
+import FastestLap from "./general/FastestLap";
+import DriverSelector from "./general/DriverSelector";
 
 const Results = () => {
   const { sessionKey } = useParams();
