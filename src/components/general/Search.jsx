@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSessions, getMeetings } from "../api";
+import { getSessions, getMeetings } from "../../api";
 import { Navigate, useNavigate } from "react-router-dom";
 
 //Creating Search component that allows users to narrow down their search first by location/track, then by year, then session, then optionally driver.
