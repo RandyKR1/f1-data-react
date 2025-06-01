@@ -6,8 +6,8 @@ import Weather from "./general/Weather";
 import Stints from "./general/Stints";
 import Intervals from "./general/Intervals";
 import Pit from "./general/Pit";
-import FastestLap from "./general/FastestLap";
-import DriverSelector from "./general/DriverSelector";
+import FastestLap from "./utility/FastestLap";
+import DriverSelector from "./utility/DriverSelector";
 
 const Results = () => {
   const { sessionKey } = useParams();

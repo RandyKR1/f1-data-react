@@ -2,7 +2,7 @@ import './App.css'
 import { Route, Routes } from 'react-router-dom'
 import Meeting from './components/general/Meeting'
 import Session from './components/general/Session'
-import Home from './components/general/Home'
+import Home from './components/utility/Home'
 import Results from './components/Results'
 import DriverResults from './components/DriverResults'
 
