@@ -25,18 +25,17 @@ const DriverSelector = ({ sessionKey, selectedDriver, setSelectedDriver }) => {
   };
 
   return (
-    <div className="mb-4">
-      <label htmlFor="driver-select" className="block font-semibold mb-2">
+    <div>
+      <label htmlFor="driver-select">
         Select a Driver:
       </label>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+      <div>
         {drivers.map((driver) => (
           <button
             key={driver.driver_number}
             onClick={() => handleSelect(driver)}
-            className="text-left p-2 bg-white rounded shadow hover:bg-gray-100"
           >
-            {driver.last_name} <span className="text-sm text-gray-500">#{driver.driver_number}</span>
+            {driver.last_name} <span>#{driver.driver_number}</span>
           </button>
         ))}
       </div>

@@ -63,16 +63,16 @@ const PracticeResults = () => {
   }
 
   return (
-    <div className="p-4 bg-gray-100 min-h-screen">
-      <h2 className="text-xl font-bold mb-4">Practice Results</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded shadow">
+    <div>
+      <h2>Practice Results</h2>
+      <div>
+        <div>
           <Weather sessionKey={sessionKey} />
         </div>
 
-        <div className="bg-white p-4 rounded shadow md:col-span-2">
-          <h3 className="text-lg font-semibold mb-2">Fastest Laps</h3>
-          <table className="w-full text-sm">
+        <div>
+          <h3>Fastest Laps</h3>
+          <table>
             <thead>
               <tr>
                 <th>Driver</th>
@@ -93,9 +93,9 @@ const PracticeResults = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded shadow mt-6">
-        <h3 className="text-lg font-semibold mb-2">Longest Stint by Compound</h3>
-        <table className="w-full text-sm">
+      <div>
+        <h3>Longest Stint by Compound</h3>
+        <table>
           <thead>
             <tr>
               <th>Compound</th>

@@ -2,15 +2,6 @@ import { useEffect, useState } from "react";
 import { getSessions, getMeetings } from "../../api";
 import { Navigate, useNavigate } from "react-router-dom";
 
-//Creating Search component that allows users to narrow down their search first by location/track, then by year, then session, then optionally driver.
-
-/**
- * Step 1: Create arrays of drop down options for the user to choose from using State.
- * Step 2: Create state management to store the selected track, year, session, driver.
- * Step 3: Create useEffect to load locations for dropdown.
- * Step 4: Create conditional state logic to load next dropdown based on selected track location.
- */
-
 const Search = () => {
     const [meetings, setMeetings] = useState([]);
     const [years, setYears] = useState([])
@@ -18,7 +9,9 @@ const Search = () => {
 
     const [selectedTrack, setSelectedTrack] = useState("");
     const [selectedYear, setSelectedYear] = useState("");
-    const [selectedSession, setSelectedSession] = useState("");
+    const [selectedSessionKey, setSelectedSessionKey] = useState("");
+    const [selectedSessionObj, setSelectedSessionObj] = useState(null);
+
 
     const navigate = useNavigate();
 
@@ -56,6 +49,13 @@ const Search = () => {
         fetchSessions();
     }, [selectedTrack, selectedYear]);
 
+    const handleSessionChange = (e) => {
+      const sessionKey = e.target.value;
+      setSelectedSessionKey(sessionKey);
+      const selected = sessions.find(
+        (s) => s.session_key.toString() === sessionKey);
+        setSelectedSessionObj(selected);
+    };
 
 
   return (
@@ -88,7 +88,7 @@ const Search = () => {
       {selectedYear && (
         <>
           <label>Session:</label>
-          <select value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)}>
+          <select value={selectedSessionKey} onChange={handleSessionChange}>
             <option value="">Select a session</option>
             {sessions.map((session) => (
               <option key={session.session_key} value={session.session_key}>
@@ -99,7 +99,7 @@ const Search = () => {
         </>
       )}
 
-      {selectedSession && (
+      {selectedSessionKey && (
         <button onClick={() => navigate(`/results/${selectedSession}`)}>
             View Race Data
         </button>
