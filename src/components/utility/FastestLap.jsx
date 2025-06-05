@@ -57,7 +57,7 @@ const FastestLap = ({sessionKey}) => {
         <div>
             <strong>Fastest Lap</strong> 
             <ul>
-                <li>Driver #{fastestLap.driver_number}</li>
+                <li>Driver: {fastestLap.driver_name || fastestLap.driver_number}</li>
                 <li>Lap Time: {formattedFastestLap}</li>
                 <li>Sector 1: {fastestLap.duration_sector_1}</li>
                 <li>Sector 2: {fastestLap.duration_sector_2}</li>

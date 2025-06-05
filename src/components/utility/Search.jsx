@@ -57,6 +57,18 @@ const Search = () => {
         setSelectedSessionObj(selected);
     };
 
+    const handleSessionNav = () => {
+      const { session_type, session_key } = selectedSessionObj;
+      let path = "";
+
+      if (session_type === "Race") path = `/race-results/${session_key}`;
+      else if (session_type === "Qualifying") path = `/qualy-results/${session_key}`;
+      else if (session_type === "Practice") path = `/practice-results/${session_key}`;
+      else path = `/results/${session_key}`; // fallback
+
+      navigate(path);
+    }
+
 
   return (
     <div>
@@ -100,7 +112,7 @@ const Search = () => {
       )}
 
       {selectedSessionKey && (
-        <button onClick={() => navigate(`/results/${selectedSession}`)}>
+        <button onClick={handleSessionNav}>
             View Race Data
         </button>
       )
