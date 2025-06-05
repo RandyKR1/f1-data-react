@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getLaps, getStints, getDrivers, getWeather } from "../../api";
+import { getLaps, getStints, getDrivers, getSessions, getMeetings } from "../../api";
 import Weather from "../general/Weather";
-import FastestLap from "../utility/FastestLap";
 import FastestLapsTable from "../utility/FastestLapsTable";
+import Search from "../utility/Search";
 
 const PracticeResults = () => {
     const { sessionKey } = useParams(); // FP1, FP2, FP3 session key
@@ -11,23 +11,37 @@ const PracticeResults = () => {
     const [laps, setLaps] = useState([])
     const [stints, setStints] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sessionInfo, setSessionInfo] = useState(null);
+    const [meetingInfo, setMeetingInfo] = useState(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const [lapData, stintData, driverData] = await Promise.all([
-        getLaps(sessionKey),
-        getStints(sessionKey),
-        getDrivers(sessionKey),
-      ]);
-      setStints(stintData);
-      setDrivers(driverData);
-      setLaps(lapData);
-      setLoading(false);
-    };
+    useEffect(() => {
+        const fetchData = async () => {
+        setLoading(true);
+        const [lapData, stintData, driverData, sessionData, meetingData] = await Promise.all([
+            getLaps(sessionKey),
+            getStints(sessionKey),
+            getDrivers(sessionKey),
+            getSessions(),
+            getMeetings()
+        ]);
+        const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
+        const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
 
-    fetchData();
-  }, [sessionKey]);
+            setStints(stintData);
+            setDrivers(driverData);
+            setLaps(lapData);
+            setSessionInfo(foundSession);
+            setMeetingInfo(foundMeeting);
+            setLoading(false);
+        };
+
+        fetchData();
+    }, [sessionKey]);
+
+
+    console.log("Session Info", sessionInfo)
+    console.log("Meeting Info", meetingInfo)
+
 
     if (loading || !laps.length || !stints.length || !drivers.length) {
         return <div>Loading practice results...</div>;
@@ -52,10 +66,11 @@ const PracticeResults = () => {
     return Object.values(result);
   }; 
 
-
   return (
     <div>
-     <h2>Practice Results</h2>
+    <Search />
+    <h2>{meetingInfo.meeting_official_name}</h2>
+     <h3> Free {sessionInfo.session_name} Results</h3>
      <FastestLapsTable laps={laps} drivers={drivers} />
      <Weather sessionKey={sessionKey}/>
 

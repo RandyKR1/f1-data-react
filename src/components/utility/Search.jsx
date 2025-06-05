@@ -69,7 +69,7 @@ const Search = () => {
       navigate(path);
     }
 
-
+    console.log(selectedSessionObj)
   return (
     <div>
       <h2>Search F1 Race Data</h2>
@@ -104,7 +104,7 @@ const Search = () => {
             <option value="">Select a session</option>
             {sessions.map((session) => (
               <option key={session.session_key} value={session.session_key}>
-                {new Date(session.date_start).toLocaleDateString()} – {session.meeting_name || session.session_type}
+                {new Date(session.date_start).toLocaleDateString()} - {session.session_name}
               </option>
             ))}
           </select>
