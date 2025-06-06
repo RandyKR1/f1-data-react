@@ -12,7 +12,6 @@ const Search = () => {
     const [selectedSessionKey, setSelectedSessionKey] = useState("");
     const [selectedSessionObj, setSelectedSessionObj] = useState(null);
 
-
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -71,54 +70,75 @@ const Search = () => {
 
     console.log(selectedSessionObj)
   return (
-    <div>
-      <h2>Search F1 Race Data</h2>
+    <div className="container py-4">
+      <div className="row justify-content-center">
+        <div className="col-md-6">
+        <h2 className="mb-4 text-center">Search F1 Race Data</h2>
 
-      {/* Track Dropdown */}
-      <label>Track:</label>
-      <select value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)}>
-        <option value="">Select a track</option>
-        {[...new Set(meetings.map((meet) => meet.location))].map((meet) => (
-          <option key={meet} value={meet}>{meet}</option>
-        ))}
-      </select>
+        {/* Track Dropdown */}
+        <div className="mb-3">
+          <label className="form-label">Track:</label>
+          <select
+            value={selectedTrack}
+            onChange={(e) => setSelectedTrack(e.target.value)}
+            className="form-select"
+          >
+          <option value="">Select a track</option>
+            {[...new Set(meetings.map((meet) => meet.location))].map((meet) => (
+            <option key={meet} value={meet}>{meet}</option>
+          ))}
+          </select>
+    </div>
 
-      {/* Year Dropdown */}
-      {selectedTrack && (
-        <>
-          <label>Year:</label>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+        {/* Year Dropdown */}
+        {selectedTrack && (
+        <div>
+          <label className="form-label">Year:</label>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="form-select"
+          >
             <option value="">Select a year</option>
-            {years.map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </>
-      )}
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-      {/* Session Dropdown with enhanced label */}
-      {selectedYear && (
-        <>
-          <label>Session:</label>
-          <select value={selectedSessionKey} onChange={handleSessionChange}>
+        {/* Session Dropdown */}
+        {selectedYear && (
+        <div className="mb-3">
+          <label className="form-label">Session:</label>
+          <select
+            value={selectedSessionKey}
+            onChange={handleSessionChange}
+            className="form-select"
+          >
             <option value="">Select a session</option>
-            {sessions.map((session) => (
-              <option key={session.session_key} value={session.session_key}>
-                {new Date(session.date_start).toLocaleDateString()} - {session.session_name}
-              </option>
+              {sessions.map((session) => (
+                <option key={session.session_key} value={session.session_key}>
+                  {new Date(session.date_start).toLocaleDateString()} - {session.session_name}
+                </option>
             ))}
-          </select>
-        </>
+            </select>
+        </div>
       )}
 
       {selectedSessionKey && (
-        <button onClick={handleSessionNav}>
+        <div className="d-grid">
+          <button onClick={handleSessionNav} className="btn btn-primary">
             View Race Data
-        </button>
-      )
-
-      }
+          </button>
+        </div>
+      )}
     </div>
+  </div>
+</div>
+
   );
 };
 

@@ -4,6 +4,7 @@ import { getLaps, getStints, getDrivers, getSessions, getMeetings } from "../../
 import Weather from "../general/Weather";
 import FastestLapsTable from "../utility/FastestLapsTable";
 import Search from "../utility/Search";
+import RaceControl from "../general/RaceControl";
 
 const PracticeResults = () => {
     const { sessionKey } = useParams(); // FP1, FP2, FP3 session key
@@ -39,8 +40,8 @@ const PracticeResults = () => {
     }, [sessionKey]);
 
 
-    console.log("Session Info", sessionInfo)
-    console.log("Meeting Info", meetingInfo)
+    // console.log("Session Info", sessionInfo)
+    // console.log("Meeting Info", meetingInfo)
 
 
     if (loading || !laps.length || !stints.length || !drivers.length) {
@@ -67,10 +68,14 @@ const PracticeResults = () => {
   }; 
 
   return (
-    <div>
-    <Search />
-    <h2>{meetingInfo.meeting_official_name}</h2>
-     <h3> Free {sessionInfo.session_name} Results</h3>
+    <div className="container">
+        <div className="container">
+            <Search />
+        </div>
+        <div className="container">
+            <h2>{meetingInfo.meeting_official_name}</h2>
+            <h3> Free {sessionInfo.session_name} Results</h3>
+        </div>
      <FastestLapsTable 
         laps={laps} 
         drivers={drivers}
@@ -98,6 +103,10 @@ const PracticeResults = () => {
             ))}
             </tbody>
         </table>
+        </div>
+
+        <div>
+            <RaceControl sessionKey={sessionKey}/>
         </div>
     </div>
   );

@@ -43,8 +43,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
           {fastestByDriver.map((lap) => (
             <tr key={lap.driver_number}>
             <Link to={`/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`}>
-                <td>{lap.driver_name}</td>
-                </Link>
+                <td>{lap.driver_name}</td> </Link>
                 <td>{lapToMinFormat(lap.lap_duration)}</td>
                 <td>{lap.lap_number}</td>
             </tr>
