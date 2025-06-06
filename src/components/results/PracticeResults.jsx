@@ -71,7 +71,11 @@ const PracticeResults = () => {
     <Search />
     <h2>{meetingInfo.meeting_official_name}</h2>
      <h3> Free {sessionInfo.session_name} Results</h3>
-     <FastestLapsTable laps={laps} drivers={drivers} />
+     <FastestLapsTable 
+        laps={laps} 
+        drivers={drivers}
+        sessionKey={sessionKey}
+        sessionName={sessionInfo.session_name} />
      <Weather sessionKey={sessionKey}/>
 
     <div>

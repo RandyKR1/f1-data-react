@@ -1,13 +1,14 @@
 // FastestLapsTable.jsx
+import { Link } from "react-router-dom";
 import React from "react";
 import { lapToMinFormat, mapDriverNames } from "../../utilities";
 
-const FastestLapsTable = ({ laps, drivers }) => {
+const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
   if (!laps?.length || !drivers?.length) return null;
 
  
     const lapsWithNames = mapDriverNames(laps, drivers);
-    
+
     const fullLaps = lapsWithNames.filter(lap => 
         lap.lap_duration != null &&
         lap.duration_sector_1 != null &&
@@ -41,9 +42,11 @@ const FastestLapsTable = ({ laps, drivers }) => {
         <tbody>
           {fastestByDriver.map((lap) => (
             <tr key={lap.driver_number}>
-              <td>{lap.driver_name}</td>
-              <td>{lapToMinFormat(lap.lap_duration)}</td>
-              <td>{lap.lap_number}</td>
+            <Link to={`/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`}>
+                <td>{lap.driver_name}</td>
+                </Link>
+                <td>{lapToMinFormat(lap.lap_duration)}</td>
+                <td>{lap.lap_number}</td>
             </tr>
           ))}
         </tbody>
