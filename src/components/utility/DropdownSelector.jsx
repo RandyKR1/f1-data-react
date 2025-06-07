@@ -1,7 +1,7 @@
 import Dropdown from 'react-bootstrap/Dropdown';
 
 const DropdownSelector = ({ title, options, selected, onSelect }) => (
-  <Dropdown>
+    <Dropdown>
     <Dropdown.Toggle variant="light" className="w-100 text-start">
       {selected || title}
     </Dropdown.Toggle>
@@ -17,7 +17,7 @@ const DropdownSelector = ({ title, options, selected, onSelect }) => (
         );
       })}
     </Dropdown.Menu>
-  </Dropdown>
+    </Dropdown>
 );
 
 export default DropdownSelector;

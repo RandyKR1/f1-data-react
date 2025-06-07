@@ -68,48 +68,73 @@ const PracticeResults = () => {
   }; 
 
   return (
-    <div className="container">
-        <div className="container">
-            <Search />
-        </div>
-        <div className="container">
-            <h2>{meetingInfo.meeting_official_name}</h2>
-            <h3> Free {sessionInfo.session_name} Results</h3>
-        </div>
-     <FastestLapsTable 
-        laps={laps} 
-        drivers={drivers}
-        sessionKey={sessionKey}
-        sessionName={sessionInfo.session_name} />
-     <Weather sessionKey={sessionKey}/>
-
-    <div>
-        <h3>Longest Stint by Compound</h3>
-        <table>
-            <thead>
-            <tr>
-                <th>Compound</th>
-                <th>Driver</th>
-                <th>Laps</th>
-            </tr>
-            </thead>
-            <tbody>
-            {getLongestStintByCompound().map((stint, index) => (
-                <tr key={index}>
-                <td>{stint.compound}</td>
-                <td>{stint.driver}</td>
-                <td>{stint.length}</td>
-                </tr>
-            ))}
-            </tbody>
-        </table>
-        </div>
-
-        <div>
-            <RaceControl sessionKey={sessionKey}/>
-        </div>
+    <div className="
+            container 
+            vw-100
+            text-light">
+      {/* Meeting Title */}
+      <div className="container-fluid my-4 p-0 d-flex">
+        <h4 className="col-md-6 text-center">{meetingInfo.meeting_official_name}</h4>
+        <h3 className="col-md-6 text-center">Free {sessionInfo.session_name} Results</h3>
     </div>
-  );
+
+    <div className="row">
+      {/* Main Content - 75% */}
+      <div className="col-md-12">
+        <div className="mb-4" style={{ maxHeight: "50vh", overflowY: "auto", width: "100%" }}>
+          <FastestLapsTable 
+            laps={laps} 
+            drivers={drivers}
+            sessionKey={sessionKey}
+            sessionName={sessionInfo.session_name} 
+          />
+        </div>
+
+        {/* Bottom Left/Right - Weather and Stint Info */}
+        <div className="row">
+          <div className="col-md-4">
+            <h4>Weather</h4>
+            <Weather sessionKey={sessionKey} />
+          </div>
+          <div className="col-md-4">
+            <h4>Longest Stint by Compound</h4>
+            <table className="table table-dark table-striped">
+              <thead>
+                <tr>
+                  <th>Compound</th>
+                  <th>Driver</th>
+                  <th>Laps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getLongestStintByCompound().map((stint, index) => (
+                  <tr key={index}>
+                    <td>{stint.compound}</td>
+                    <td>{stint.driver}</td>
+                    <td>{stint.length}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+            <div className="col-md-4">
+              <div className="mb-4">
+                <Search />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+    {/* Race Control at Bottom */}
+    <div className="mt-4">
+      <RaceControl sessionKey={sessionKey} />
+    </div>
+  </div>
+);
+
 };
 
 export default PracticeResults;

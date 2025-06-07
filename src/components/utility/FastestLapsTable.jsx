@@ -1,5 +1,5 @@
 // FastestLapsTable.jsx
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import React from "react";
 import { lapToMinFormat, mapDriverNames } from "../../utilities";
 
@@ -8,6 +8,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
 
  
     const lapsWithNames = mapDriverNames(laps, drivers);
+    const navigate = useNavigate();
 
     const fullLaps = lapsWithNames.filter(lap => 
         lap.lap_duration != null &&
@@ -31,21 +32,32 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
   return (
     <div>
       <h3>Fastest Lap Per Driver</h3>
-      <table>
+      <table className="table table-dark table-striped">
         <thead>
           <tr>
             <th>Driver</th>
             <th>Lap Time</th>
-            <th>Lap #</th>
+            <th>Lap</th>
+            <th>Sector 1</th>
+            <th>Sector 2</th>
+            <th>Sector 3</th>
           </tr>
         </thead>
         <tbody>
           {fastestByDriver.map((lap) => (
-            <tr key={lap.driver_number}>
-            <Link to={`/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`}>
-                <td>{lap.driver_name}</td> </Link>
+            <tr key={lap.driver_number}
+                role="button"
+                onClick={ () =>
+                  navigate(
+                    `/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`
+                  )
+                 }>
+                <td>{lap.driver_name}</td> 
                 <td>{lapToMinFormat(lap.lap_duration)}</td>
                 <td>{lap.lap_number}</td>
+                <td>{lap.duration_sector_1}</td>
+                <td>{lap.duration_sector_2}</td>
+                <td>{lap.duration_sector_3}</td>
             </tr>
           ))}
         </tbody>
