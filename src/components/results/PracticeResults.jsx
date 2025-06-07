@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getLaps, getStints, getDrivers, getSessions, getMeetings } from "../../api";
 import Weather from "../general/Weather";
@@ -91,7 +91,7 @@ const PracticeResults = () => {
         </div>
 
         {/* Bottom Left/Right - Weather and Stint Info */}
-        <div className="row">
+        <div className="row mt-5">
           <div className="col-md-4">
             <h4>Weather</h4>
             <Weather sessionKey={sessionKey} />

@@ -30,11 +30,12 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
   console.log(fastestByDriver)
 
   return (
-    <div>
-      <h3>Fastest Lap Per Driver</h3>
+    <div className="border border-secondary rounded-3">
+      <h3>Results</h3>
       <table className="table table-dark table-striped">
         <thead>
           <tr>
+            <th>Place</th>
             <th>Driver</th>
             <th>Lap Time</th>
             <th>Lap</th>
@@ -44,7 +45,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
           </tr>
         </thead>
         <tbody>
-          {fastestByDriver.map((lap) => (
+          {fastestByDriver.map((lap, index) => (
             <tr key={lap.driver_number}
                 role="button"
                 onClick={ () =>
@@ -52,6 +53,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
                     `/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`
                   )
                  }>
+                <td>{index + 1}</td>
                 <td>{lap.driver_name}</td> 
                 <td>{lapToMinFormat(lap.lap_duration)}</td>
                 <td>{lap.lap_number}</td>

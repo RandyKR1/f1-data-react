@@ -3,7 +3,7 @@ const DriverPracticeResults = () => {
 
     return(
         <div>
-            <h2>Driver Practice Results</h2>
+            <h2 className="text-light">Driver Practice Results</h2>
         </div>
     )
 }
