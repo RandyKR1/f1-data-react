@@ -78,10 +78,16 @@ const PracticeResults = () => {
         <h3 className="col-md-6 text-center">Free {sessionInfo.session_name} Results</h3>
     </div>
 
+    <div className="col-md-12">
+      <div>
+        <Search />
+      </div>
+    </div>
+
     <div className="row">
       {/* Main Content - 75% */}
       <div className="col-md-12">
-        <div className="mb-4" style={{ maxHeight: "50vh", overflowY: "auto", width: "100%" }}>
+        <div className="mb-4 border border-secondary border-4 rounded-2" style={{ maxHeight: "50vh", overflowY: "auto", width: "100%" }}>
           <FastestLapsTable 
             laps={laps} 
             drivers={drivers}
@@ -91,12 +97,12 @@ const PracticeResults = () => {
         </div>
 
         {/* Bottom Left/Right - Weather and Stint Info */}
-        <div className="row mt-5">
-          <div className="col-md-4">
+        <div className="row mt-5  d-flex justify-content-center">
+          <div className="col-md-5 me-4 border border-secondary border-4 rounded-2">
             <h4>Weather</h4>
             <Weather sessionKey={sessionKey} />
           </div>
-          <div className="col-md-4">
+          <div className="col-md-5 ms-4 border border-secondary border-4 rounded-2">
             <h4>Longest Stint by Compound</h4>
             <table className="table table-dark table-striped">
               <thead>
@@ -117,11 +123,6 @@ const PracticeResults = () => {
               </tbody>
             </table>
           </div>
-            <div className="col-md-4">
-              <div className="mb-4">
-                <Search />
-              </div>
-            </div>
           </div>
         </div>
       </div>

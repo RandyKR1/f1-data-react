@@ -76,7 +76,7 @@ const Search = () => {
     <div className="container py-4">
       <div className="row justify-content-center">
         {/* ✅ Use Bootstrap for spacing and alignment */}
-        <div className="col-md-6 d-flex flex-column gap-3 ">
+        <div className="col-md-10 d-flex flex-column gap-3">
 
           {/* ✅ Replaced native <select> with DropdownSelector */}
           <DropdownSelector

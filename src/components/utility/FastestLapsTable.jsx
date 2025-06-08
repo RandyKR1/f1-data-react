@@ -30,8 +30,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
   console.log(fastestByDriver)
 
   return (
-    <div className="border border-secondary rounded-3">
-      <h3>Results</h3>
+    <div>
       <table className="table table-dark table-striped">
         <thead>
           <tr>
