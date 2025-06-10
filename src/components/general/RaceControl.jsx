@@ -10,7 +10,6 @@ const RaceControl = ({sessionKey}) => {
 
         const fetchRaceControl = async () => {
             const data = await getRaceControl(sessionKey);
-            console.log("Race Control Data:", data)
             setRaceControl(data);
             setLoading(false);
         }
@@ -23,8 +22,17 @@ const RaceControl = ({sessionKey}) => {
         return <p>Loading Race Control Data...</p>;
     }
 
+    console.log("Race Control Data:", raceControl)
+
     return(
-        <div>
+        <div className="col-md-6">
+            {raceControl.map((rc) => 
+                <li key={rc.date}>
+                    <p>{rc.flag}</p> 
+                    <p>{rc.category}</p>
+                    <p>{rc.message}</p>
+                </li>
+            )}
         </div>
     )
 }

@@ -68,74 +68,48 @@ const PracticeResults = () => {
   }; 
 
   return (
-    <div className="
-            container 
-            vw-100
-            text-light">
-      {/* Meeting Title */}
-      <div className="container-fluid my-4 p-0 d-flex">
-        <h4 className="col-md-6 text-center">{meetingInfo.meeting_official_name}</h4>
+    <div className=" container vw-100 text-light">
+      <div className="row my-4 p-0 d-flex">
+        <h4 className="col-sm-12 col-md-6 text-center">{meetingInfo.meeting_official_name}</h4>
         <h3 className="col-md-6 text-center">Free {sessionInfo.session_name} Results</h3>
     </div>
 
-    <div className="col-md-12">
-      <div>
-        <Search />
-      </div>
-    </div>
-
     <div className="row">
-      {/* Main Content - 75% */}
-      <div className="col-md-12">
-        <div className="mb-4 border border-secondary border-4 rounded-2" style={{ maxHeight: "50vh", overflowY: "auto", width: "100%" }}>
-          <FastestLapsTable 
+      <Search />
+      <FastestLapsTable 
             laps={laps} 
             drivers={drivers}
             sessionKey={sessionKey}
             sessionName={sessionInfo.session_name} 
           />
-        </div>
-
-        {/* Bottom Left/Right - Weather and Stint Info */}
-        <div className="row mt-5  d-flex justify-content-center">
-          <div className="col-md-5 me-4 border border-secondary border-4 rounded-2">
-            <h4>Weather</h4>
-            <Weather sessionKey={sessionKey} />
-          </div>
-          <div className="col-md-5 ms-4 border border-secondary border-4 rounded-2">
-            <h4>Longest Stint by Compound</h4>
-            <table className="table table-dark table-striped">
-              <thead>
-                <tr>
-                  <th>Compound</th>
-                  <th>Driver</th>
-                  <th>Laps</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getLongestStintByCompound().map((stint, index) => (
-                  <tr key={index}>
-                    <td>{stint.compound}</td>
-                    <td>{stint.driver}</td>
-                    <td>{stint.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </div>
-        </div>
-      </div>
-
-
-
-    {/* Race Control at Bottom */}
-    <div className="mt-4">
-      <RaceControl sessionKey={sessionKey} />
     </div>
-  </div>
-);
 
-};
+    <div className="row my-5 d-flex justify-content-center">
+        <Weather sessionKey={sessionKey} />
+        <div className="col-md-6">
+        <h4>Longest Stint by Compound</h4>
+        <table className="table table-dark table-striped">
+          <thead>
+            <tr>
+              <th>Compound</th>
+              <th>Driver</th>
+              <th>Laps</th>
+            </tr>
+          </thead>
+          <tbody>
+            {getLongestStintByCompound().map((stint, index) => (
+              <tr key={index}>
+                <td>{stint.compound}</td>
+                <td>{stint.driver}</td>
+                <td>{stint.length}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+         <RaceControl sessionKey={sessionKey} />   
+      </div>
+    </div>
+    </div>
+)};
 
 export default PracticeResults;

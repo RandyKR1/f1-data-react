@@ -73,7 +73,7 @@ const Search = () => {
   const uniqueTracks = [...new Set(meetings.map((meet) => meet.location))];
 
   return (
-    <div className="container py-4">
+    <div className="container py-4 col-xs-12">
       <div className="row justify-content-center">
         {/* ✅ Use Bootstrap for spacing and alignment */}
         <div className="col-md-10 d-flex flex-column gap-3">

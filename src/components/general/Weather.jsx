@@ -50,16 +50,28 @@ const Weather = ({sessionKey}) => {
     
 
     return(
-        <div>
-            <p>Air Temp High: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
-            <p>Air Temp Low: {minAirTempCel?.air_temperature}°C / {minAirTempFar}°F</p>
-            <p>Track Temp High: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
-            <p>Track Temp Low: {minTrackTempCel?.track_temperature}°C / {minTrackTempFar}°F</p>
-            <p>Max Wind Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
-            <p>Wind Direction: {windDirection}</p>
-            <p>Humidity: {humidity}%</p>
-            <p>Rain During Session?: {rain}</p>     
-        </div>
+            <div className="container d-flex justify-content-center mb-5">
+                <div className="col-md-3 text-center">
+                    <p className="fw-bold fs-4">Air Temp</p>
+                    <p className="fs-5">High: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
+                    <p className="fs-5">Low: {minAirTempCel?.air_temperature}°C / {minAirTempFar}°F</p>
+                </div>
+                <div className="col-md-3 text-center">
+                    <p className="fw-bold fs-4">Track Temp</p>
+                    <p className="fs-5">High: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
+                    <p className="fs-5">Low: {minTrackTempCel?.track_temperature}°C / {minTrackTempFar}°F</p>
+                </div>
+                <div className="col-md-3 text-center">
+                    <p className="fw-bold fs-4">Wind</p>
+                    <p className="fs-5">Direction: {windDirection}</p>
+                    <p className="fs-5">Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
+                </div>
+                <div className="col-md-3 text-center">
+                    <p className="fw-bold fs-4">Precipitation</p>
+                    <p className="fs-5">Humidity: {humidity}%</p>
+                    <p className="fs-5">Rain During Session?: {rain}</p>
+                </div>  
+            </div>   
     )
 }
 
