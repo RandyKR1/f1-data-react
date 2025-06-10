@@ -4,6 +4,7 @@ import { getRaceControl } from "../../api";
 const RaceControl = ({sessionKey}) => {
     const [raceControl, setRaceControl] = useState([])
     const [loading, setLoading] = useState(true);
+    const [expandedMessage, setExpandedMessage] = useState(null);
 
     useEffect(() => {
         if (!sessionKey) return;
@@ -22,19 +23,25 @@ const RaceControl = ({sessionKey}) => {
         return <p>Loading Race Control Data...</p>;
     }
 
-    console.log("Race Control Data:", raceControl)
+    const toggleMessage = (raceControl) => {
+        setExpandedMessage((prev) => (prev === raceControl ? null : raceControl));
+    };
 
     return(
         <div className="col-md-6">
             {raceControl.map((rc) => 
-                <li key={rc.date}>
-                    <p>{rc.flag}</p> 
-                    <p>{rc.category}</p>
-                    <p>{rc.message}</p>
-                </li>
+                <div key={rc.date}>
+                    <button onClick={() => toggleMessage(rc)} className="fw-bold text-uppercase">
+                        {rc.category === "Flag" ? rc.flag : rc.category}
+                    </button>
+                    {expandedMessage === rc && (
+                        <ul className="flex flex-col justify-center items-center space-y-2">
+                            {rc.message}
+                        </ul>
+                    )}
+                </div>
             )}
         </div>
-    )
-}
+    )}
 
 export default RaceControl;
