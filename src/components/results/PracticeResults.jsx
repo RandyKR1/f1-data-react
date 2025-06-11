@@ -86,8 +86,9 @@ const PracticeResults = () => {
 
     <div className="row my-5 d-flex justify-content-center">
         <Weather sessionKey={sessionKey} />
+        <div className="row">
         <div className="col-md-6">
-        <h4>Longest Stint by Compound</h4>
+        <p className="fw-bold">Longest Stint By Compound</p>
         <table className="table table-dark table-striped">
           <thead>
             <tr>
@@ -106,6 +107,7 @@ const PracticeResults = () => {
             ))}
           </tbody>
         </table>
+        </div>
          <RaceControl sessionKey={sessionKey} />   
       </div>
     </div>
