@@ -68,7 +68,7 @@ const PracticeResults = () => {
   }; 
 
   return (
-    <div className=" container vw-100 text-light">
+    <div className=" container vw-100">
       <div className="row my-4 p-0 d-flex">
         <h4 className="col-sm-12 col-md-6 text-center">{meetingInfo.meeting_official_name}</h4>
         <h3 className="col-md-6 text-center">Free {sessionInfo.session_name} Results</h3>
@@ -76,20 +76,22 @@ const PracticeResults = () => {
 
     <div className="row">
       <Search />
+      <div style={{ maxHeight: "470px", overflowY: "auto"}}>
       <FastestLapsTable 
             laps={laps} 
             drivers={drivers}
             sessionKey={sessionKey}
             sessionName={sessionInfo.session_name} 
           />
+        </div>
     </div>
 
     <div className="row my-5 d-flex justify-content-center">
         <Weather sessionKey={sessionKey} />
         <div className="row">
-        <div className="col-md-6">
+        <div className="col-md-6 text-center">
         <p className="fw-bold">Longest Stint By Compound</p>
-        <table className="table table-dark table-striped">
+        <table className="table table-light table-striped">
           <thead>
             <tr>
               <th>Compound</th>
@@ -108,7 +110,12 @@ const PracticeResults = () => {
           </tbody>
         </table>
         </div>
-         <RaceControl sessionKey={sessionKey} />   
+        <div className="col-md-6 text-center ">
+          <p className="fw-bold">Race Control Messages</p>
+          <div style={{ maxHeight: "165px", overflowY: "auto", borderRadius: "15px" }}>
+          <RaceControl sessionKey={sessionKey}/>
+          </div>
+        </div>  
       </div>
     </div>
     </div>

@@ -1,5 +1,3 @@
-import React from "react";
-import { Link } from "react-router-dom";
 import Search from "./Search";
 
 const Home = () => {
@@ -9,9 +7,7 @@ const Home = () => {
             align-items-center justify-content-center 
             text-center 
             container-fluid 
-            vh-100 vw-100
-            bg-dark
-            text-light">
+            vh-100 vw-100">
                 <h1>Welcome! Looking for all things F1 data?</h1>
                 <h2>You're in the right place</h2>
                 <br/>

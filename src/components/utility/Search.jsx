@@ -75,17 +75,13 @@ const Search = () => {
   return (
     <div className="container py-4 col-xs-12">
       <div className="row justify-content-center">
-        {/* ✅ Use Bootstrap for spacing and alignment */}
         <div className="col-md-10 d-flex flex-column gap-3">
-
-          {/* ✅ Replaced native <select> with DropdownSelector */}
           <DropdownSelector
             title="Select a Track"
             options={uniqueTracks}
             selected={selectedTrack}
             onSelect={setSelectedTrack}
           />
-
           {selectedTrack && (
             <DropdownSelector
               title="Select a Year"
@@ -111,7 +107,6 @@ const Search = () => {
               onSelect={handleSessionChange}
             />
           )}
-
           {selectedSessionKey && (
             <div className="d-grid">
               <button onClick={handleSessionNav} className="btn btn-primary">
