@@ -4,7 +4,9 @@
 const RaceResults = () => {
 
     return(
-        <div></div>
+        <div>
+            {/* <Position /> */}
+        </div>
     )
 }
 

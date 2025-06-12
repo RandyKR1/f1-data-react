@@ -29,7 +29,7 @@ const RaceControl = ({sessionKey}) => {
         <div className="accordion-item" key={index}>
             <h2 className="accordion-header" id={`heading-${index}`}>
             <button
-                className="accordion-button collapsed"
+                className="accordion-button collapsed text-uppercase"
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target={`#collapse-${index}`}

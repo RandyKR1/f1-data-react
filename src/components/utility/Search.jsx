@@ -109,7 +109,7 @@ const Search = () => {
           )}
           {selectedSessionKey && (
             <div className="d-grid">
-              <button onClick={handleSessionNav} className="btn btn-primary">
+              <button onClick={handleSessionNav} className="btn btn-success">
                 View Race Data
               </button>
             </div>

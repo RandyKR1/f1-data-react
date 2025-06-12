@@ -31,7 +31,7 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
 
   return (
     <div className="col-xs-12">
-      <table className="table table-light table-striped">
+      <table className="table table-light table-striped-columns">
         <thead>
           <tr>
             <th>Place</th>
