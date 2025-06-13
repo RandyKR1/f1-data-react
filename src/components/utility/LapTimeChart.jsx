@@ -35,7 +35,7 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
             setSelectedDriver1(uniqueDrivers[0]);
             setSelectedDriver2(uniqueDrivers[1] || uniqueDrivers[0]); // fallback if only one driver
         }
-    }, [lapsWithDriverNames]);
+    }, []);
 
     if (!drivers.length) return <p>No drivers found</p>;
 
