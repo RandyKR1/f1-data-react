@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { lapToMinFormat, getMinBy } from "../../utilities";
-import {
-    AreaChart,
-    Area,
-    XAxis,
-    YAxis,
-    Tooltip,
-    Legend,
-    ResponsiveContainer,
-    CartesianGrid,
-} from "recharts";
 import DriverSelector from "../chartUtils/DriverSelector";
 import CompareToggle from "../chartUtils/CompareToggle";
 import LineVisibilityToggle from "../chartUtils/LineVisabilityToggle";
-import LapAreaChart from "../chartUtils/LapAreaChart";
+import SessionLapsLineDisplay from "../chartUtils/SessionLapsLineDisplay";
+import FastestLapLineDisplay from "../chartUtils/FastestLapLineDisplay";
+import { useLocation } from "react-router-dom";
 
 const LapTimeChart = ({ drivers = [], laps = [] }) => {
     const [selectedDriver1, setSelectedDriver1] = useState("");
@@ -88,6 +79,11 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
             [key]: !prev[key],
         }));
     };
+
+    const location = useLocation();
+    const isQualifying = location.pathname.includes("qualy-results");
+
+
     return (
         <div>
             <DriverSelector
@@ -120,18 +116,28 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
                 visibleLines={visibleLines}
                 onToggle={handleToggleLine} />
 
-            {combinedData.length > 0 ? (
-                <LapAreaChart
-                    data={combinedData}
+            {isQualifying ? (
+                <FastestLapLineDisplay
+                    laps={laps}
+                    drivers={drivers}
                     visibleLines={visibleLines}
                     compareMode={compareMode}
                     driver1={selectedDriver1}
                     driver2={selectedDriver2}
                 />
             ) : (
-                <p>Select drivers to preview lap data!</p>
+                combinedData.length > 0 ? (
+                    <SessionLapsLineDisplay
+                        data={combinedData}
+                        visibleLines={visibleLines}
+                        compareMode={compareMode}
+                        driver1={selectedDriver1}
+                        driver2={selectedDriver2}
+                    />
+                ) : (
+                    <p>Select drivers to preview lap data!</p>
+                )
             )}
-
         </div>
     )
 };
