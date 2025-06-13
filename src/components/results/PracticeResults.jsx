@@ -8,7 +8,7 @@ import RaceControl from "../general/RaceControl";
 import LapTimeChart from "../utility/LapTimeChart"
 
 const PracticeResults = () => {
-  const { sessionKey } = useParams(); // FP1, FP2, FP3 session key
+  const { sessionKey } = useParams(); 
   const [drivers, setDrivers] = useState([]);
   const [laps, setLaps] = useState([])
   const [stints, setStints] = useState([]);
