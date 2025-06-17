@@ -28,16 +28,16 @@ const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driv
             )}
 
             {compareMode && visibleLines.lapTime && (
-                <Line  type="monotone" dataKey="lapDuration2" stroke="#413ea0" fill="#413ea0" name={`${driver2} Lap Time`} dot connectNulls />
+                <Line type="monotone" dataKey="lapDuration2" stroke="#413ea0" fill="#413ea0" name={`${driver2} Lap Time`} dot connectNulls />
             )}
             {compareMode && visibleLines.sector1 && (
-                <Line  type="monotone" dataKey="sector1_2" stroke="#008000" name={`${driver2} Sector 1`} dot={false} connectNulls fillOpacity={0.3} />
+                <Line type="monotone" dataKey="sector1_2" stroke="#008000" name={`${driver2} Sector 1`} dot={false} connectNulls fillOpacity={0.3} />
             )}
             {compareMode && visibleLines.sector2 && (
-                <Line  type="monotone" dataKey="sector2_2" stroke="#ff6347" name={`${driver2} Sector 2`} dot={false} connectNulls fillOpacity={0.3} />
+                <Line type="monotone" dataKey="sector2_2" stroke="#ff6347" name={`${driver2} Sector 2`} dot={false} connectNulls fillOpacity={0.3} />
             )}
             {compareMode && visibleLines.sector3 && (
-                <Line  type="monotone" dataKey="sector3_2" stroke="#ffa500" name={`${driver2} Sector 3`} dot={false} connectNulls fillOpacity={0.3} />
+                <Line type="monotone" dataKey="sector3_2" stroke="#ffa500" name={`${driver2} Sector 3`} dot={false} connectNulls fillOpacity={0.3} />
             )}
         </LineChart>
     </ResponsiveContainer>

@@ -112,9 +112,12 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
 
             <hr />
 
+
+            {!isQualifying ? (
             <LineVisibilityToggle
                 visibleLines={visibleLines}
                 onToggle={handleToggleLine} />
+            ) : (null)}
 
             {isQualifying ? (
                 <FastestLapLineDisplay

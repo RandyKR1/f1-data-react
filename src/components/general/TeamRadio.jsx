@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { getTeamRadio, getDrivers } from "../../api";
 import { mapDriverNames, groupByDriverName } from "../../utilities";
 
-const TeamRadio = ({sessionKey}) => {
+const TeamRadio = ({ sessionKey }) => {
     const [teamRadio, setTeamRadio] = useState([])
     const [drivers, setDrivers] = useState([])
     const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ const TeamRadio = ({sessionKey}) => {
     }, [sessionKey])
 
 
-        if (loading || !drivers.length || !teamRadio.length) {
+    if (loading || !drivers.length || !teamRadio.length) {
         return <p>Loading Team Radio Data...</p>;
     }
 
@@ -45,26 +45,36 @@ const TeamRadio = ({sessionKey}) => {
     const radioByDriver = groupByDriverName(addTeamToTeamRadio)
     // console.log("Radio By Driver:", radioByDriver)
 
-    
+
     return (
-    <div>
-        <strong>Team Radios</strong>
-        <hr />
-        {Object.entries(radioByDriver).map(([driver, radios]) => (
-        <div key={driver} className="pt-[5px]">
-            <button onClick={() => toggleTeam(driver)}>{driver}</button>
-            {expandedDriver === driver && (
-            <ul className="flex flex-col justify-center items-center space-y-2">
-                {radios.map((radio, index) => (
-                <li key={index}>
-                    <audio controls src={radio.recording_url} className="w-72 md:w-45 lg:w-72"/>
-                </li>
-                ))}
-            </ul>
-            )}
+        <div className="accordion" id="raceControlAccordion">
+            {Object.entries(radioByDriver).map(([driver, radios, index]) => (
+                <div className="accordion-item" key={index}>
+                    <h2 className="accordion-header" id={`heading-${index}`}>
+                    <button
+                        onClick={() => toggleTeam(driver)}
+                        className="accordion-button collapsed text-uppercase"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target={`#collapse-${index}`}
+                        aria-expanded="false"
+                        aria-controls={`collapse-${index}`}
+                    >
+                        {driver}
+                    </button>
+                    </h2>
+                    {expandedDriver === driver && (
+                        <ul className="flex flex-col justify-center items-center space-y-2 list-unstyled">
+                            {radios.map((radio, index) => (
+                                <li key={index}>
+                                    <audio controls src={radio.recording_url} className="w-72 md:w-45 lg:w-72 mt-3" />
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            ))}
         </div>
-        ))}
-    </div>
     );
 }
 
