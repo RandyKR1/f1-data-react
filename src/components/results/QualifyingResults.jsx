@@ -10,9 +10,11 @@ import {
     getStints,
     getDrivers,
     getSessions,
-    getMeetings
+    getMeetings,
+    getPosition
 } from "../../api";
 import TeamRadio from "../general/TeamRadio";
+import Position from "../general/Postition";
 
 
 const QualifyingResults = () => {
@@ -23,14 +25,16 @@ const QualifyingResults = () => {
     const [loading, setLoading] = useState(true);
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
+    const [positionInfo, setPositionInfo] = useState(null)
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const [lapData, stintData, driverData, sessionData, meetingData] = await Promise.all([
+            const [lapData, stintData, driverData, positionData, sessionData, meetingData] = await Promise.all([
                 getLaps(sessionKey),
                 getStints(sessionKey),
                 getDrivers(sessionKey),
+                getPosition(sessionKey),
                 getSessions(),
                 getMeetings()
             ]);
@@ -42,6 +46,7 @@ const QualifyingResults = () => {
             setLaps(lapData);
             setSessionInfo(foundSession);
             setMeetingInfo(foundMeeting);
+            setPositionInfo(positionData)
             setLoading(false);
         };
 
@@ -52,7 +57,11 @@ const QualifyingResults = () => {
         return <div>Loading Qualifying Results...</div>;
     }
 
-    console.log("Meeting:", meetingInfo)
+    // console.log("Meeting:", meetingInfo)
+    // console.log("Session", sessionInfo)
+    // console.log("Position:", positionInfo)
+
+
 
     return (
         <div className=" container vw-100">
@@ -69,6 +78,7 @@ const QualifyingResults = () => {
                         drivers={drivers}
                         sessionKey={sessionKey}
                         sessionName={sessionInfo.session_name}
+                        positionInfo={positionInfo}
                     />
                 </div>
             </div>
@@ -92,6 +102,7 @@ const QualifyingResults = () => {
                         <p className="fw-bold fs-3">Race Control Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <RaceControl sessionKey={sessionKey} />
+
                         </div>
                     </div>
                 </div>

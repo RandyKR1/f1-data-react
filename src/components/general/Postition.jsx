@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 import { getPosition } from "../../api";
 
-const Position = ({sessionKey}) => {
+const Position = ({sessionKey, drivers}) => {
     const [position, setPosition] = useState([])
     const [loading, setLoading] = useState(true);
 
@@ -22,6 +22,7 @@ const Position = ({sessionKey}) => {
     if (loading || !drivers.position) {
         return <p>Loading Position Data...</p>;
     }
+
 
     return(
         <div>

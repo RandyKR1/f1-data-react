@@ -1,33 +1,40 @@
 // FastestLapsTable.jsx
 import { useNavigate } from "react-router-dom";
 import React from "react";
-import { lapToMinFormat, mapDriverNames } from "../../utilities";
+import { lapToMinFormat, mapDriverNames, groupByDriverName } from "../../utilities";
 
-const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
-  if (!laps?.length || !drivers?.length) return null;
+const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName, positionInfo }) => {
+  if (!laps?.length || !drivers?.length || !positionInfo.length) return null;
 
- 
-    const lapsWithNames = mapDriverNames(laps, drivers);
-    const navigate = useNavigate();
 
-    const fullLaps = lapsWithNames.filter(lap => 
-        lap.lap_duration != null &&
-        lap.duration_sector_1 != null &&
-        lap.duration_sector_2 != null &&
-        lap.duration_sector_3 != null
-    )
+  const lapsWithNames = mapDriverNames(laps, drivers);
+  const navigate = useNavigate();
 
-    const fastestByDriver = Object.values(
-        fullLaps.reduce((acc, lap) => {
-        const driver = lap.driver_number;
-        if (!acc[driver] || lap.lap_duration < acc[driver].lap_duration) {
-            acc[driver] = lap;
-        }
-        return acc;
+  const fullLaps = lapsWithNames.filter(lap =>
+    lap.lap_duration != null &&
+    lap.duration_sector_1 != null &&
+    lap.duration_sector_2 != null &&
+    lap.duration_sector_3 != null
+  )
+
+  const fastestByDriver = Object.values(
+    fullLaps.reduce((acc, lap) => {
+      const driver = lap.driver_number;
+      if (!acc[driver] || lap.lap_duration < acc[driver].lap_duration) {
+        acc[driver] = lap;
+      }
+      return acc;
     }, {})
-    ).sort((a, b) => a.lap_duration - b.lap_duration);
+  ).sort((a, b) => a.lap_duration - b.lap_duration);
 
-  console.log(fastestByDriver)
+
+  console.log("fastest lap per driver", fastestByDriver)
+
+  const positionWithNames = mapDriverNames(positionInfo, drivers)
+  const positionsByName = groupByDriverName(positionWithNames)
+
+  console.log("Position Data", positionsByName)
+
 
   return (
     <div className="col-xs-12">
@@ -46,19 +53,19 @@ const FastestLapsTable = ({ laps, drivers, sessionKey, sessionName }) => {
         <tbody>
           {fastestByDriver.map((lap, index) => (
             <tr key={lap.driver_number}
-                role="button"
-                onClick={ () =>
-                  navigate(
-                    `/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`
-                  )
-                 }>
-                <td>{index + 1}</td>
-                <td>{lap.driver_name}</td> 
-                <td>{lapToMinFormat(lap.lap_duration)}</td>
-                <td>{lap.lap_number}</td>
-                <td>{lap.duration_sector_1}</td>
-                <td>{lap.duration_sector_2}</td>
-                <td>{lap.duration_sector_3}</td>
+              role="button"
+              onClick={() =>
+                navigate(
+                  `/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${lap.driver_number}`
+                )
+              }>
+              <td>{index + 1}</td>
+              <td>{lap.driver_name}</td>
+              <td>{lapToMinFormat(lap.lap_duration)}</td>
+              <td>{lap.lap_number}</td>
+              <td>{lap.duration_sector_1}</td>
+              <td>{lap.duration_sector_2}</td>
+              <td>{lap.duration_sector_3}</td>
             </tr>
           ))}
         </tbody>
