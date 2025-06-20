@@ -1,37 +1,48 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getLaps, getStints, getDrivers, getSessions, getMeetings } from "../../api";
+import {
+  getLaps,
+  getStints,
+  getDrivers,
+  getSessions,
+  getMeetings,
+  getPosition,
+} from "../../api";
 import Weather from "../general/Weather";
-import FastestLapsTable from "../utility/FastestLapsTable";
+import FinalClassificationTable from "../utility/FinalClassificationTable";
 import Search from "../utility/Search";
 import RaceControl from "../general/RaceControl";
 import LapTimeChart from "../utility/LapTimeChart"
+import TimedAlert from "../utility/TimedAlert";
 
 const PracticeResults = () => {
-  const { sessionKey } = useParams(); 
+  const { sessionKey } = useParams();
   const [drivers, setDrivers] = useState([]);
   const [laps, setLaps] = useState([])
   const [stints, setStints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sessionInfo, setSessionInfo] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null)
+  const [positionInfo, setPositionInfo] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [lapData, stintData, driverData, sessionData, meetingData] = await Promise.all([
+      const [lapData, stintData, driverData, positionData, sessionData, meetingData] = await Promise.all([
         getLaps(sessionKey),
         getStints(sessionKey),
         getDrivers(sessionKey),
+        getPosition(sessionKey),
         getSessions(),
         getMeetings()
       ]);
       const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
       const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
 
+      setLaps(lapData);
       setStints(stintData);
       setDrivers(driverData);
-      setLaps(lapData);
+      setPositionInfo(positionData);
       setSessionInfo(foundSession);
       setMeetingInfo(foundMeeting);
       setLoading(false);
@@ -70,6 +81,9 @@ const PracticeResults = () => {
 
   return (
     <div className=" container vw-100">
+      <TimedAlert
+        message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API"}
+      />
       <div className="row mt-5 mb-4 p-0 d-flex">
         <h3 className="col-sm-12 col-md-6 text-center text">{meetingInfo.meeting_official_name}</h3>
         <h3 className="col-md-6 text-center">Free {sessionInfo.session_name} Results</h3>
@@ -78,11 +92,12 @@ const PracticeResults = () => {
       <div className="row">
         <Search />
         <div>
-          <FastestLapsTable
+          <FinalClassificationTable
             laps={laps}
             drivers={drivers}
             sessionKey={sessionKey}
             sessionName={sessionInfo.session_name}
+            positionInfo={positionInfo}
           />
         </div>
       </div>

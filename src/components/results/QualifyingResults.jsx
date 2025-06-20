@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Search from "../utility/Search";
-import FastestLapsTable from "../utility/FastestLapsTable";
+import FinalClassificationTable from "../utility/FinalClassificationTable";
 import LapTimeChart from "../utility/LapTimeChart";
 import Weather from "../general/Weather";
 import RaceControl from "../general/RaceControl";
@@ -11,10 +11,10 @@ import {
     getDrivers,
     getSessions,
     getMeetings,
-    getPosition
+    getPosition,
 } from "../../api";
 import TeamRadio from "../general/TeamRadio";
-import Position from "../general/Postition";
+import TimedAlert from "../utility/TimedAlert";
 
 
 const QualifyingResults = () => {
@@ -41,12 +41,12 @@ const QualifyingResults = () => {
             const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
             const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
 
+            setLaps(lapData);
             setStints(stintData);
             setDrivers(driverData);
-            setLaps(lapData);
+            setPositionInfo(positionData);
             setSessionInfo(foundSession);
             setMeetingInfo(foundMeeting);
-            setPositionInfo(positionData)
             setLoading(false);
         };
 
@@ -65,15 +65,18 @@ const QualifyingResults = () => {
 
     return (
         <div className=" container vw-100">
+            <TimedAlert 
+                message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API"}
+                />
             <div className="row mt-5 mb-4 p-0 d-flex">
                 <h3 className="col-sm-12 col-md-6 text-center text">{meetingInfo.meeting_official_name}</h3>
-                <h3 className="col-md-6 text-center">Qualifying Results</h3>
+                <h3 className="col-md-6 text-center">{sessionInfo.session_name} Results</h3>
             </div>
 
             <div className="row">
                 <Search />
                 <div>
-                    <FastestLapsTable
+                    <FinalClassificationTable
                         laps={laps}
                         drivers={drivers}
                         sessionKey={sessionKey}
