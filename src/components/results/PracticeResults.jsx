@@ -14,6 +14,7 @@ import Search from "../utility/Search";
 import RaceControl from "../general/RaceControl";
 import LapTimeChart from "../utility/LapTimeChart"
 import TimedAlert from "../utility/TimedAlert";
+import LongestStintByCompound from "../utility/LongestStintByCompound"
 
 const PracticeResults = () => {
   const { sessionKey } = useParams();
@@ -60,24 +61,6 @@ const PracticeResults = () => {
     return <div>Loading practice results...</div>;
   }
 
-  const getDriverName = (driver_number) =>
-    drivers.find((d) => d.driver_number === driver_number)?.last_name || "Unknown";
-
-  const getLongestStintByCompound = () => {
-    const result = {};
-    for (let stint of stints) {
-      const length = stint.lap_end - stint.lap_start + 1;
-      const key = stint.compound;
-      if (!result[key] || length > result[key].length) {
-        result[key] = {
-          length,
-          driver: getDriverName(stint.driver_number),
-          compound: stint.compound,
-        };
-      }
-    }
-    return Object.values(result);
-  };
 
   return (
     <div className=" container vw-100">
@@ -112,25 +95,7 @@ const PracticeResults = () => {
         <Weather sessionKey={sessionKey} />
         <div className="row">
           <div className="col-md-6 text-center">
-            <p className="fw-bold fs-3">Longest Stint By Compound</p>
-            <table className="table table-light table-striped">
-              <thead>
-                <tr>
-                  <th>Compound</th>
-                  <th>Driver</th>
-                  <th>Laps</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getLongestStintByCompound().map((stint, index) => (
-                  <tr key={index}>
-                    <td>{stint.compound}</td>
-                    <td>{stint.driver}</td>
-                    <td>{stint.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <LongestStintByCompound stints={stints} drivers={drivers} />
           </div>
           <div className="col-md-6 text-center ">
             <p className="fw-bold fs-3">Race Control Messages</p>

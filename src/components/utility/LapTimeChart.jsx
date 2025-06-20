@@ -17,6 +17,8 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
     });
     const [compareMode, setCompareMode] = useState(false);
 
+
+    
     const lapsWithDriverNames = laps.map((lap) => {
         const driver = drivers.find(d => d.driver_number === lap.driver_number);
         return {
