@@ -63,9 +63,6 @@ const FinalRaceClassification = ({ laps, drivers, sessionKey, sessionName, posit
             <th>Position</th>
             <th>Driver</th>
             <th>Best Lap</th>
-            <th>Sector 1</th>
-            <th>Sector 2</th>
-            <th>Sector 3</th>
             <th>Laps</th>
           </tr>
         </thead>
@@ -83,10 +80,6 @@ const FinalRaceClassification = ({ laps, drivers, sessionKey, sessionName, posit
               <td>{index + 1}</td>
               <td>{driver.driver_name}</td>
               <td>{driver.best_lap ? lapToMinFormat(driver.best_lap.lap_duration) : "N/A"}</td>
-              <td>{driver.best_lap?.lap_number ?? "–"}</td>
-              <td>{driver.best_lap?.duration_sector_1 ?? "–"}</td>
-              <td>{driver.best_lap?.duration_sector_2 ?? "–"}</td>
-              <td>{driver.best_lap?.duration_sector_3 ?? "–"}</td>
               <td>{driver.completed_laps}</td>
             </tr>
           ))}
