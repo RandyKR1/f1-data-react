@@ -113,7 +113,7 @@ const DriverPracticeResults = () => {
                 </div>
                 <div class="row">
                     <div class="col-md-6">Team Radio</div>
-                    <div class="col-md-6">Race Control</div>
+                    <div class="col-md-6">{driverStints[0].compound}</div>
                 </div>
             </div>
         </div >
