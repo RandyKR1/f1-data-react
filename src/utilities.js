@@ -115,3 +115,12 @@ export const sortRaceResults = (drivers) => {
     return a.raceLength - b.raceLength;
   });
 };
+
+export const getDriverFinalPosition = (driverNumber, positionInfo) => {
+  const driverPositions = positionInfo.filter(
+    (p) => p.driver_number.toString() === driverNumber.toString()
+  );
+
+  const finalEntry = driverPositions[driverPositions.length - 1];
+  return finalEntry?.position ?? "N/A";
+};

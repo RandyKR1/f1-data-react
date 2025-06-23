@@ -65,7 +65,7 @@ const PracticeResults = () => {
   return (
     <div className=" container vw-100">
       <TimedAlert
-        message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API"}
+        message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API."}
       />
       <div className="row mt-5 mb-4 p-0 d-flex">
         <h3 className="col-sm-12 col-md-6 text-center text">{meetingInfo.meeting_official_name}</h3>
