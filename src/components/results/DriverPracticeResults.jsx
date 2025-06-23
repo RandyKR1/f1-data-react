@@ -105,7 +105,7 @@ const DriverPracticeResults = () => {
 
                 <div className="row">
                     <div className="col-md-4 d-flex flex-column">
-                        <p className="fw-bold">Final Position</p>
+                        <p className="fw-bold">Finishing Position</p>
                         <p>P{finalPosition}</p>
                     </div>
                     <div className="col-md-4">Fastest Lap</div>
