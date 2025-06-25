@@ -9,8 +9,8 @@ import {
     getPosition,
 } from "../../api";
 import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
-import LongestStintByCompound from "../utility/LongestStintByCompound";
 import DriverTeamRadio from "../general/DriverTeamRadio";
+import LapTimeChart from "../utility/LapTimeChart";
 
 const DriverPracticeResults = () => {
     const { sessionKey, driver_number } = useParams();
@@ -87,6 +87,10 @@ const DriverPracticeResults = () => {
     const driverNumber = driver.driver_number;
     const finalPosition = getDriverFinalPosition(driverNumber, positionInfo);
 
+    console.log(meetingInfo)
+    console.log(sessionInfo)
+    console.log(driver)
+
     return (
         <div className="container py-4">
             {/* Header */}
@@ -141,21 +145,17 @@ const DriverPracticeResults = () => {
 
             {/* Team Radio + Stints */}
             <div className="row">
-                <div className="col-md-6 mb-4">
+                <div className="col-md-12 mb-4">
                     <h5 className="fw-bold mb-3">Team Radio</h5>
                     <DriverTeamRadio
                         sessionKey={sessionKey}
                         driverNumber={driver_number}
                     />
                 </div>
-
-                <div className="col-md-6 mb-4">
-                    <h5 className="fw-bold mb-3">Stint Information</h5>
-                    <LongestStintByCompound
-                        stints={driverStints}
-                        drivers={drivers}
-                        driverNumber={driver.driver_number}
-                    />
+                <div className="col-md-12 mb-4">
+                    <LapTimeChart
+                        sessionKey={sessionKey}
+                        drivers={drivers} laps={laps} />
                 </div>
             </div>
         </div>

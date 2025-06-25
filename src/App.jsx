@@ -20,7 +20,7 @@ return (
       <Route path="/practice-results/:sessionKey/:sessionName/:driver_number" element={<DriverPracticeResults />} />
       <Route path="/qualy-results/:sessionKey" element={<QualifyingResults />} />
       <Route path="/qualy-results/:sessionKey/:sessionName/:driver_number" element={<DriverQualifyingResults />} />
-      <Route path="/race-results/:sessionKey" element={<RaceResults />} />\
+      <Route path="/race-results/:sessionKey" element={<RaceResults />} />
       <Route path="/race-results/:sessionKey/:sessionName/:driver_number" element={<DriverRaceResults />} />
       <Route path="/race-results" element={<RaceResults />} />
 

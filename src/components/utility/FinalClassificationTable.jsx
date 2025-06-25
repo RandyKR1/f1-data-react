@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import React from "react";
 import { lapToMinFormat, mapDriverNames, groupByDriverName } from "../../utilities";
 
@@ -6,6 +6,7 @@ const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, posi
   if (!laps?.length || !drivers?.length || !positionInfo?.length) return null;
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const lapsWithNames = mapDriverNames(laps, drivers);
   const positionWithNames = mapDriverNames(positionInfo, drivers);
@@ -45,6 +46,10 @@ const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, posi
 
   const sortedResults = finalResults.sort((a, b) => a.final_position - b.final_position);
 
+  const baseRoute = location.pathname.toLowerCase().includes("qualy")
+    ? "qualy-results"
+    : "practice-results";
+
   return (
     <div className="col-xs-12">
       <table className="table table-light table-striped-columns">
@@ -65,8 +70,9 @@ const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, posi
               key={driver.driver_number}
               role="button"
               onClick={() =>
+
                 navigate(
-                  `/practice-results/${sessionKey}/${encodeURIComponent(sessionName)}/${driver.driver_number}`
+                  `/${baseRoute}/${sessionKey}/${encodeURIComponent(sessionName)}/${driver.driver_number}`
                 )
               }
             >

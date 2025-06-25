@@ -53,7 +53,6 @@ const FinalRaceClassification = ({ laps, drivers, sessionKey, sessionName, posit
     return a.final_position - b.final_position;
   });
 
-  console.log("sorted results", sortedResults)
 
   return (
     <div className="col-xs-12">
