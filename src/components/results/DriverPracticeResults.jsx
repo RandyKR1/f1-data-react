@@ -8,7 +8,9 @@ import {
     getMeetings,
     getPosition,
 } from "../../api";
-import { getDriverFinalPosition, getMinBy } from "../../utilities";
+import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
+import LongestStintByCompound from "../utility/LongestStintByCompound";
+import DriverTeamRadio from "../general/DriverTeamRadio";
 
 const DriverPracticeResults = () => {
     const { sessionKey, driver_number } = useParams();
@@ -38,6 +40,7 @@ const DriverPracticeResults = () => {
                 getSessions(),
                 getMeetings(),
             ]);
+
             const foundSession = sessionData.find(
                 (s) => s.session_key.toString() === sessionKey
             );
@@ -57,20 +60,17 @@ const DriverPracticeResults = () => {
         fetchData();
     }, [sessionKey]);
 
-    if (loading) {
-        return <div>Loading Results...</div>;
-    }
+    if (loading) return <div className="text-center mt-5">Loading Results...</div>;
 
     const driver = drivers.find(
         (d) => d.driver_number.toString() === driver_number
     );
-    if (!driver) {
-        return <div>Driver not found</div>;
-    }
+    if (!driver) return <div className="text-center mt-5">Driver not found</div>;
 
     const driverLaps = laps.filter(
         (lap) => lap.driver_number.toString() === driver_number
     );
+
     const driverStints = stints.filter(
         (stint) => stint.driver_number.toString() === driver_number
     );
@@ -80,55 +80,82 @@ const DriverPracticeResults = () => {
         "lap_duration"
     );
 
+    const formattedBestLap = bestLap ? lapToMinFormat(bestLap.lap_duration) : "N/A";
+
     const fullName = `${driver.first_name} ${driver.last_name}`;
     const headShot = driver.headshot_url;
     const driverNumber = driver.driver_number;
     const finalPosition = getDriverFinalPosition(driverNumber, positionInfo);
 
     return (
-        <div className="container vw-100">
-            <div className="row align-items-center mb-4">
-                <div className="col-md-4 d-flex flex-column align-items-center">
+        <div className="container py-4">
+            {/* Header */}
+            <div className="row align-items-center mb-5">
+                <div className="col-md-3 text-center">
                     <img
                         src={headShot}
                         alt={`${fullName} Headshot`}
-                        style={{ maxWidth: "100px", borderRadius: "12px" }}
+                        className="img-fluid rounded mb-2"
+                        style={{ maxWidth: "120px" }}
                     />
-                    <p className="fw-bold mt-2">
-                        {fullName} #{driverNumber}
-                    </p>
-                    <p className="fw-bold">{driver.team_name}</p>
+                    <h5 className="fw-bold mb-0">{fullName}</h5>
+                    <p className="text-muted mb-0">#{driverNumber}</p>
+                    <p className="fw-semibold text-uppercase">{driver.team_name}</p>
                 </div>
 
-                <div className="col-md-8 text-center fw-bold">
-                    <h3>{meetingInfo.meeting_official_name}</h3>
-                    <h4>Free {sessionInfo.session_name} Driver Results</h4>
+                <div className="col-md-9 text-center">
+                    <h3 className="fw-bold">{meetingInfo.meeting_official_name}</h3>
+                    <h4 className="text-secondary">
+                        Free {sessionInfo.session_name} Driver Results
+                    </h4>
                 </div>
             </div>
 
-            <div className="row text-center mb-4">
+            {/* Key Stats */}
+            <div className="row text-center mb-5">
                 <div className="col-md-4">
-                    <p className="fw-bold">Finishing Position</p>
-                    <p>P{finalPosition}</p>
+                    <div className="card shadow-sm">
+                        <div className="card-body">
+                            <p className="card-title fw-bold mb-1">Finishing Position</p>
+                            <h5 className="mb-0">P{finalPosition}</h5>
+                        </div>
+                    </div>
                 </div>
                 <div className="col-md-4">
-                    <p className="fw-bold">Fastest Lap</p>
-                    <p>{bestLap ? bestLap.lap_duration : "N/A"}</p>
+                    <div className="card shadow-sm">
+                        <div className="card-body">
+                            <p className="card-title fw-bold mb-1">Fastest Lap</p>
+                            <h5 className="mb-0">{formattedBestLap}</h5>
+                        </div>
+                    </div>
                 </div>
                 <div className="col-md-4">
-                    <p className="fw-bold">Race Duration</p>
-                    <p>{/* Add race duration here if available */}</p>
+                    <div className="card shadow-sm">
+                        <div className="card-body">
+                            <p className="card-title fw-bold mb-1">Race Duration</p>
+                            <h5 className="mb-0 text-muted">N/A</h5>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            {/* Team Radio + Stints */}
             <div className="row">
-                <div className="col-md-6">
-                    <p className="fw-bold">Team Radio</p>
-                    <p>{/* Add team radio info here if available */}</p>
+                <div className="col-md-6 mb-4">
+                    <h5 className="fw-bold mb-3">Team Radio</h5>
+                    <DriverTeamRadio
+                        sessionKey={sessionKey}
+                        driverNumber={driver_number}
+                    />
                 </div>
-                <div className="col-md-6">
-                    <p className="fw-bold">Compound</p>
-                    <p>{driverStints.length > 0 ? driverStints[0].compound : "N/A"}</p>
+
+                <div className="col-md-6 mb-4">
+                    <h5 className="fw-bold mb-3">Stint Information</h5>
+                    <LongestStintByCompound
+                        stints={driverStints}
+                        drivers={drivers}
+                        driverNumber={driver.driver_number}
+                    />
                 </div>
             </div>
         </div>
