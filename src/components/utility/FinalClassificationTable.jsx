@@ -52,7 +52,7 @@ const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, posi
 
   return (
     <div className="col-xs-12">
-      <table className="table table-light table-striped-columns">
+      <table className="table">
         <thead>
           <tr>
             <th>Position</th>
