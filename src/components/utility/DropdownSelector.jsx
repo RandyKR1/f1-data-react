@@ -4,7 +4,7 @@ const DropdownSelector = ({ title, options, selected, onSelect, className="" }) 
     <Dropdown>
     <Dropdown.Toggle 
       variant="light" 
-      className="w-100 text-start text-light bg-secondary">
+      className="w-100 text-cneter text-light bg-secondary">
       {selected || title}
     </Dropdown.Toggle>
 
@@ -13,7 +13,11 @@ const DropdownSelector = ({ title, options, selected, onSelect, className="" }) 
         const label = typeof opt === 'string' ? opt : opt.label;
         const value = typeof opt === 'string' ? opt : opt.value;
         return (
-          <Dropdown.Item key={value} onClick={() => onSelect(value)}>
+          <Dropdown.Item 
+            key={value} 
+            onClick={() => onSelect(value)}
+            className="text-center"
+            >
             {label}
           </Dropdown.Item>
         );

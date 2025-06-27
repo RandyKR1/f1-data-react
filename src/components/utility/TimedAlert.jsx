@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
-const TimedAlert = ({ message, duration = 8000, className = "alert-warning" }) => {
+const TimedAlert = ({ message, className = "alert-warning" }) => {
     const [visible, setVisible] = useState(true);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setVisible(false), duration);
-        return () => clearTimeout(timer);
-    }, [duration]);
 
     if (!visible) return null;
 
     return (
-        <div className={`alert ${className} text-center`} role="alert">
-            {message}
+        <div className={`alert ${className} text-center d-flex justify-content-between align-items-center`} role="alert">
+            <span className="flex-grow-1">{message}</span>
+            <button
+                type="button"
+                className="btn-close ms-2"
+                aria-label="Close"
+                onClick={() => setVisible(false)}
+            />
         </div>
     );
 };

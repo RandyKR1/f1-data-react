@@ -117,7 +117,7 @@ const DriverPracticeResults = () => {
 
             {/* Key Stats */}
             <div className="row text-center mb-5">
-                <div className="col-md-4">
+                <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Finishing Position</p>
@@ -125,19 +125,11 @@ const DriverPracticeResults = () => {
                         </div>
                     </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Fastest Lap</p>
                             <h5 className="mb-0">{formattedBestLap}</h5>
-                        </div>
-                    </div>
-                </div>
-                <div className="col-md-4">
-                    <div className="card shadow-sm">
-                        <div className="card-body">
-                            <p className="card-title fw-bold mb-1">Race Duration</p>
-                            <h5 className="mb-0 text-muted">N/A</h5>
                         </div>
                     </div>
                 </div>

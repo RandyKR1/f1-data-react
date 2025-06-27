@@ -5,6 +5,7 @@ import FinalClassificationTable from "../utility/FinalClassificationTable";
 import LapTimeChart from "../utility/LapTimeChart";
 import Weather from "../general/Weather";
 import RaceControl from "../general/RaceControl";
+import { motion } from "motion/react";
 import {
     getLaps,
     getStints,
@@ -26,6 +27,22 @@ const QualifyingResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
     const [positionInfo, setPositionInfo] = useState(null)
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 750) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -54,28 +71,36 @@ const QualifyingResults = () => {
     }, [sessionKey]);
 
     if (loading || !laps.length || !stints.length || !drivers.length) {
-        return <div>Loading Qualifying Results...</div>;
+        return <div className="text-center mt-5">Loading Qualifying Results...</div>;
     }
 
-    // console.log("Meeting:", meetingInfo)
-    // console.log("Session", sessionInfo)
-    // console.log("Position:", positionInfo)
-
-
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
     return (
         <div className=" container vw-100">
-            <TimedAlert 
+            <TimedAlert
                 message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API"}
-                />
-            <div className="row mt-5 mb-4 p-0 d-flex">
-                <h3 className="col-sm-12 col-md-6 text-center text">{meetingInfo.meeting_official_name}</h3>
-                <h3 className="col-md-6 text-center">{sessionInfo.session_name} Results</h3>
-            </div>
+            />
+            <motion.div
+                className="row mt-5 mb-4 p-0 d-flex flex-column text-start"
+                initial={{ x: 10, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 2 }}>
+
+                <h3 className="col-md-12" style={{ fontSize: "48px" }}>{meetingInfo.meeting_official_name}</h3>
+                <h3 className="col-md-12" style={{ fontSize: "38px" }}> {sessionInfo.session_name} Results</h3>
+
+            </motion.div>
 
             <div className="row">
                 <Search />
-                <div>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
                     <FinalClassificationTable
                         laps={laps}
                         drivers={drivers}
@@ -83,18 +108,36 @@ const QualifyingResults = () => {
                         sessionName={sessionInfo.session_name}
                         positionInfo={positionInfo}
                     />
-                </div>
+                </motion.div>
             </div>
 
             <div className="row">
-                <div className="col-md-12">
+                <motion.div
+                    className="col-md-12"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
                     <LapTimeChart sessionKey={sessionKey} drivers={drivers} laps={laps} />
-                </div>
+                </motion.div>
             </div>
 
             <div className="row my-5 d-flex justify-content-center">
-                <Weather sessionKey={sessionKey} />
-                <div className="row">
+                <motion.div
+                    className="col-md-12"
+                    initial={{ x: 50, opacity: 0 }}
+                    whileInView={{ x: 0, opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
+                    <Weather sessionKey={sessionKey} />
+                </motion.div>
+
+                <motion.div 
+                    className="row"
+                    initial={{ x: -50, opacity: 0 }}
+                    whileInView={{ x: 0, opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    >
                     <div className="col-md-6 text-center">
                         <p className="fw-bold fs-3">Team Radio Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
@@ -108,8 +151,28 @@ const QualifyingResults = () => {
 
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
+
+            {showScrollTop && (
+                <motion.button
+                    onClick={scrollToTop}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="btn btn-dark position-fixed"
+                    style={{
+                        bottom: "40px",
+                        right: "40px",
+                        zIndex: 1000,
+                        borderRadius: "50%",
+                        padding: "0.75rem 1rem",
+                    }}
+                    aria-label="Back to top"
+                >
+                    ↑
+                </motion.button>
+            )}
         </div>
     )
 

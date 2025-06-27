@@ -26,7 +26,6 @@ const LongestStintByCompund = ({ stints, drivers }) => {
 
     return (
         <div className="col-md-12 text-center">
-            <p className="fw-bold fs-3">Longest Stint By Compound</p>
             <table className="table table-light table-striped">
                 <thead>
                     <tr>

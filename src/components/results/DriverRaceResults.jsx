@@ -11,8 +11,9 @@ import {
 import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
 import LongestStintByCompound from "../utility/LongestStintByCompound";
 import DriverTeamRadio from "../general/DriverTeamRadio";
+import LapTimeChart from "../utility/LapTimeChart";
 
-const DriverPracticeResults = () => {
+const DriverRaceResults = () => {
     const { sessionKey, driver_number } = useParams();
     const [drivers, setDrivers] = useState([]);
     const [laps, setLaps] = useState([]);
@@ -106,14 +107,14 @@ const DriverPracticeResults = () => {
                 <div className="col-md-9 text-center">
                     <h3 className="fw-bold">{meetingInfo.meeting_official_name}</h3>
                     <h4 className="text-secondary">
-                        Free {sessionInfo.session_name} Driver Results
+                        {sessionInfo.session_name} Driver Results
                     </h4>
                 </div>
             </div>
 
             {/* Key Stats */}
             <div className="row text-center mb-5">
-                <div className="col-md-4">
+                <div className="col-md-5 offset-md-1">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Finishing Position</p>
@@ -121,7 +122,7 @@ const DriverPracticeResults = () => {
                         </div>
                     </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-5">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Fastest Lap</p>
@@ -129,14 +130,12 @@ const DriverPracticeResults = () => {
                         </div>
                     </div>
                 </div>
-                <div className="col-md-4">
-                    <div className="card shadow-sm">
-                        <div className="card-body">
-                            <p className="card-title fw-bold mb-1">Race Duration</p>
-                            <h5 className="mb-0 text-muted">N/A</h5>
-                        </div>
-                    </div>
-                </div>
+            </div>
+
+            <div className="col-md-12 mb-5">
+                <LapTimeChart
+                    sessionKey={sessionKey}
+                    drivers={drivers} laps={laps} />
             </div>
 
             {/* Team Radio + Stints */}
@@ -162,4 +161,4 @@ const DriverPracticeResults = () => {
     );
 };
 
-export default DriverPracticeResults;
+export default DriverRaceResults;

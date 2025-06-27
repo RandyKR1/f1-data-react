@@ -97,10 +97,10 @@ const FastestLapLineDisplay = ({ laps, drivers, visibleLines, compareMode, drive
 
                     {/* Bars - sector durations */}
                     {visibleLines.lapTime && (
-                        <Bar dataKey={`${driver1}_bar`} fill="#82ca9d" name={`${driver1} Sector Time`} />
+                        <Bar dataKey={`${driver1}_bar`} fill="#1b4f72" name={`${driver1} Sector Time`} />
                     )}
                     {compareMode && visibleLines.lapTime && (
-                        <Bar dataKey={`${driver2}_bar`} fill="#ff7300" name={`${driver2} Sector Time`} />
+                        <Bar dataKey={`${driver2}_bar`} fill="#e10600" name={`${driver2} Sector Time`} />
                     )}
 
                     {/* Lines - cumulative lap time */}
@@ -108,7 +108,7 @@ const FastestLapLineDisplay = ({ laps, drivers, visibleLines, compareMode, drive
                         <Line
                             type="monotone"
                             dataKey={`${driver1}_cumulative`}
-                            stroke="#2f4f4f"
+                            stroke="#1b4f72"
                             name={`${driver1} Cumulative Lap`}
                         />
                     )}
@@ -116,7 +116,7 @@ const FastestLapLineDisplay = ({ laps, drivers, visibleLines, compareMode, drive
                         <Line
                             type="monotone"
                             dataKey={`${driver2}_cumulative`}
-                            stroke="#d62728"
+                            stroke="#e10600"
                             name={`${driver2} Cumulative Lap`}
                         />
                     )}

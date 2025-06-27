@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { motion } from "motion/react";
 import {
     getLaps,
     getStints,
@@ -27,6 +28,21 @@ const RaceResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
     const [positionInfo, setPositionInfo] = useState(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 750) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -58,8 +74,12 @@ const RaceResults = () => {
     // console.log("Meeting Info", meetingInfo)
 
     if (loading || !laps.length || !stints.length || !drivers.length) {
-        return <div>Loading Race Results...</div>;
+        return <div className="text-center mt-5">Loading Race Results...</div>;
     }
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
 
 
     return (
@@ -67,14 +87,25 @@ const RaceResults = () => {
             <TimedAlert
                 message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API. This Also Impacts The Ability To Alter Final Positions After Penalties"}
             />
-            <div className="row mt-5 mb-4 p-0 d-flex">
-                <h3 className="col-sm-12 col-md-6 text-center text">{meetingInfo.meeting_official_name}</h3>
-                <h3 className="col-md-6 text-center">{sessionInfo.session_name} Results</h3>
-            </div>
 
-            <div className="row">
+            <motion.div
+                className="row mt-5 mb-4 p-0 d-flex flex-column text-start"
+                initial={{ x: 10, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 2 }}>
+
+                <h3 className="col-md-12" style={{ fontSize: "48px" }}>{meetingInfo.meeting_official_name}</h3>
+                <h3 className="col-md-12" style={{ fontSize: "38px" }}> {sessionInfo.session_name} Results</h3>
+            </motion.div>
+
+            <div
+                className="row">
                 <Search />
-                <div>
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
                     <FinalRaceClassification
                         laps={laps}
                         drivers={drivers}
@@ -82,36 +113,83 @@ const RaceResults = () => {
                         sessionName={sessionInfo.session_name}
                         positionInfo={positionInfo}
                     />
-                </div>
+                </motion.div>
             </div>
+
+
 
             <div className="row">
-                <div className="col-md-12">
+                <motion.div
+                    className="col-md-12"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
                     <LapTimeChart sessionKey={sessionKey} drivers={drivers} laps={laps} />
-                </div>
+                </motion.div>
             </div>
 
+
+
             <div className="row my-5 d-flex justify-content-center">
-                <Weather sessionKey={sessionKey} />
-                <div className="row">
+                <motion.div
+                    className="col-md-12"
+                    initial={{ x: 50, opacity: 0 }}
+                    whileInView={{ x: 0, opacity: 1 }}
+                    transition={{ duration: 1 }}
+                >
+                    <Weather sessionKey={sessionKey} />
+                </motion.div>
+
+                <div 
+                    className="row" 
+                    style={{ marginBottom: "20px" }}>
+                        <p className="fs-3 text-center">Longest Stint By Compound</p>
+                        <LongestStintByCompound stints={stints} drivers={drivers} />
+                </div>
+
+                <motion.div
+                    className="row"
+                    initial={{ x: -50, opacity: 0 }}
+                    whileInView={{ x: 0, opacity: 1 }}
+                    transition={{ duration: 1 }}
+                    >
                     <div className="col-md-6 text-center">
-                        <p className="fw-bold fs-3">Team Radio Messages</p>
-                        <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
+                        <p className="fs-3">Team Radio Messages</p>
+                        <div
+                            style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <TeamRadio sessionKey={sessionKey} />
                         </div>
                     </div>
                     <div className="col-md-6 text-center ">
-                        <p className="fw-bold fs-3">Race Control Messages</p>
-                        <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
+                        <p className="fs-3">Race Control Messages</p>
+                        <div
+                            style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <RaceControl sessionKey={sessionKey} />
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
-            <div className="row" style={{marginBottom: "20px"}}>
-                <LongestStintByCompound stints={stints} drivers={drivers} />
-            </div>
+            {showScrollTop && (
+                <motion.button
+                    onClick={scrollToTop}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="btn btn-dark position-fixed"
+                    style={{
+                        bottom: "40px",
+                        right: "40px",
+                        zIndex: 1000,
+                        borderRadius: "50%",
+                        padding: "0.75rem 1rem",
+                    }}
+                    aria-label="Back to top"
+                >
+                ↑
+                </motion.button>
+            )}
         </div>
     )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSessions, getMeetings } from "../../api";
 import { useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 import DropdownSelector from "./DropdownSelector";
 
 const Search = () => {
@@ -73,7 +74,11 @@ const Search = () => {
   const uniqueTracks = [...new Set(meetings.map((meet) => meet.location))];
 
   return (
-    <div className="container py-4 col-xs-12">
+    <motion.div
+      className="container py-4 col-xs-12"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 3 }}>
       <div className="row justify-content-center">
         <div className="col-md-10 d-flex flex-column gap-3">
           <DropdownSelector
@@ -88,10 +93,10 @@ const Search = () => {
               options={years.map((year) => ({
                 label: year.toString(),
                 value: year.toString()
-            }))}
+              }))}
               selected={selectedYear}
               onSelect={setSelectedYear}
-          />
+            />
           )}
 
           {selectedYear && (
@@ -116,7 +121,7 @@ const Search = () => {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
