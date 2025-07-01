@@ -65,7 +65,7 @@ const DriverPracticeResults = () => {
     const driver = drivers.find(
         (d) => d.driver_number.toString() === driver_number
     );
-    if (!driver) return <div className="text-center mt-5">Driver not found</div>;
+    if (!driver) return <div className="text-center mt-5">Driver not found. Please Refresh The Page</div>;
 
     const driverLaps = laps.filter(
         (lap) => lap.driver_number.toString() === driver_number
@@ -87,9 +87,9 @@ const DriverPracticeResults = () => {
     const driverNumber = driver.driver_number;
     const finalPosition = getDriverFinalPosition(driverNumber, positionInfo);
 
-    console.log(meetingInfo)
-    console.log(sessionInfo)
-    console.log(driver)
+    // console.log(meetingInfo)
+    // console.log(sessionInfo)
+    // console.log(driver)
 
     return (
         <div className="container py-4">
@@ -147,7 +147,8 @@ const DriverPracticeResults = () => {
                 <div className="col-md-12 mb-4">
                     <LapTimeChart
                         sessionKey={sessionKey}
-                        drivers={drivers} laps={laps} />
+                        drivers={drivers} laps={laps}
+                        initialDriverNumber={driver_number} />
                 </div>
             </div>
         </div>

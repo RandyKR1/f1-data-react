@@ -9,8 +9,8 @@ import {
     getPosition,
 } from "../../api";
 import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
-import LongestStintByCompound from "../utility/LongestStintByCompound";
 import DriverTeamRadio from "../general/DriverTeamRadio";
+import LapTimeChart from "../utility/LapTimeChart";
 
 const DriverPracticeResults = () => {
     const { sessionKey, driver_number } = useParams();
@@ -65,7 +65,7 @@ const DriverPracticeResults = () => {
     const driver = drivers.find(
         (d) => d.driver_number.toString() === driver_number
     );
-    if (!driver) return <div className="text-center mt-5">Driver not found</div>;
+    if (!driver) return <div className="text-center mt-5">Driver not found. Please Refresh The Page</div>;
 
     const driverLaps = laps.filter(
         (lap) => lap.driver_number.toString() === driver_number
@@ -113,7 +113,7 @@ const DriverPracticeResults = () => {
 
             {/* Key Stats */}
             <div className="row text-center mb-5">
-                <div className="col-md-4">
+                <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Finishing Position</p>
@@ -121,7 +121,7 @@ const DriverPracticeResults = () => {
                         </div>
                     </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Fastest Lap</p>
@@ -129,19 +129,11 @@ const DriverPracticeResults = () => {
                         </div>
                     </div>
                 </div>
-                <div className="col-md-4">
-                    <div className="card shadow-sm">
-                        <div className="card-body">
-                            <p className="card-title fw-bold mb-1">Race Duration</p>
-                            <h5 className="mb-0 text-muted">N/A</h5>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {/* Team Radio + Stints */}
             <div className="row">
-                <div className="col-md-6 mb-4">
+                <div className="col-md-12 mb-4">
                     <h5 className="fw-bold mb-3">Team Radio</h5>
                     <DriverTeamRadio
                         sessionKey={sessionKey}
@@ -149,13 +141,11 @@ const DriverPracticeResults = () => {
                     />
                 </div>
 
-                <div className="col-md-6 mb-4">
-                    <h5 className="fw-bold mb-3">Stint Information</h5>
-                    <LongestStintByCompound
-                        stints={driverStints}
-                        drivers={drivers}
-                        driverNumber={driver.driver_number}
-                    />
+                <div className="col-md-12 mb-4">
+                    <LapTimeChart
+                        sessionKey={sessionKey}
+                        drivers={drivers} laps={laps}
+                        initialDriverNumber={driver_number} />
                 </div>
             </div>
         </div>

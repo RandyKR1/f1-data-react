@@ -6,7 +6,7 @@ import SessionLapsLineDisplay from "../chartUtils/SessionLapsLineDisplay";
 import FastestLapLineDisplay from "../chartUtils/FastestLapLineDisplay";
 import { useLocation } from "react-router-dom";
 
-const LapTimeChart = ({ drivers = [], laps = [] }) => {
+const LapTimeChart = ({ drivers = [], laps = [], initialDriverNumber }) => {
     const [selectedDriver1, setSelectedDriver1] = useState("");
     const [selectedDriver2, setSelectedDriver2] = useState("");
     const [visibleLines, setVisibleLines] = useState({
@@ -18,7 +18,7 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
     const [compareMode, setCompareMode] = useState(false);
 
 
-    
+
     const lapsWithDriverNames = laps.map((lap) => {
         const driver = drivers.find(d => d.driver_number === lap.driver_number);
         return {
@@ -29,6 +29,14 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
 
 
     useEffect(() => {
+        if (!drivers.length || !laps.length) return;
+
+        const driver = drivers.find(
+            (d) => d.driver_number.toString() === initialDriverNumber?.toString()
+        );
+
+        const name = driver ? driver.last_name : null;
+
         const uniqueDrivers = [
             ...new Set(
                 lapsWithDriverNames
@@ -36,11 +44,16 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
                     .map((lap) => lap.driver_name)
             ),
         ];
-        if (uniqueDrivers.length > 0) {
+
+        if (name && uniqueDrivers.includes(name)) {
+            setSelectedDriver1(name);
+            setSelectedDriver2(uniqueDrivers.find((n) => n !== name) || name);
+        } else if (uniqueDrivers.length > 0) {
             setSelectedDriver1(uniqueDrivers[0]);
             setSelectedDriver2(uniqueDrivers[1] || uniqueDrivers[0]);
         }
     }, []);
+
 
     if (!drivers.length) return <p>No drivers found</p>;
 
@@ -116,9 +129,9 @@ const LapTimeChart = ({ drivers = [], laps = [] }) => {
 
 
             {!isQualifying ? (
-            <LineVisibilityToggle
-                visibleLines={visibleLines}
-                onToggle={handleToggleLine} />
+                <LineVisibilityToggle
+                    visibleLines={visibleLines}
+                    onToggle={handleToggleLine} />
             ) : (null)}
 
             {isQualifying ? (

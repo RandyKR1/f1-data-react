@@ -39,7 +39,7 @@ const DriverTeamRadio = ({ sessionKey, driverNumber }) => {
     }
 
     const driver = drivers.find((d) => d.driver_number.toString() === driverNumber.toString());
-    const driverName = driver ? `${driver.first_name} ${driver.last_name}` : "Unknown Driver";
+    const driverName = driver ? `${driver.first_name} ${driver.last_name}` : "Error Loading Driver Name, Please Refresh";
 
     const toggleAccordion = () => setIsExpanded(!isExpanded);
 
