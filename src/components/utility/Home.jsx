@@ -25,7 +25,7 @@ const Home = () => {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 3 }}
             >
-                Looking for all things F1 data?
+                Looking for all things F1?
             </motion.h2>
 
             <br />
@@ -37,7 +37,14 @@ const Home = () => {
                 Start your search below:
             </motion.h4>
 
+            <div
+                className="container-fluid"
+                style={{
+                    minHeight: "250px",
+                    transition: "min-height 0.3s ease"
+                }}>
                 <Search />
+            </div>
 
         </div>
     );

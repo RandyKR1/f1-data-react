@@ -112,7 +112,6 @@ const DriverRaceResults = () => {
                 </div>
             </div>
 
-            {/* Key Stats */}
             <div className="row text-center mb-5">
                 <div className="col-md-5 offset-md-1">
                     <div className="card shadow-sm">
@@ -133,7 +132,6 @@ const DriverRaceResults = () => {
             </div>
 
 
-            {/* Team Radio + Stints */}
             <div className="row">
                 <div className="col-md-10 mb-5 text-center offset-md-1">
                     <h5 className="fw-bold mb-3">Team Radio</h5>
