@@ -4,9 +4,7 @@ A Formula 1 data exploration app built with **React.js** that lets you dive deep
 
 Powered by the free and open [OpenF1 API](https://openf1.org/).
 
-> ⚠️ **Note**: The OpenF1 API is **not accessible during official F1 sessions** due to restrictions. Please explore data during non-live periods.
-
----
+> ⚠️ The OpenF1 API is not available during **official F1 sessions** (live timing is disabled while races are running).
 
 ## 🚀 Features
 
@@ -14,7 +12,6 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
   - **Track**
   - **Year**
   - **Session type** (Practice, Qualifying, Race)
-  
 - 📊 View detailed data for individual drivers:
   - Best lap times
   - Final position
@@ -22,23 +19,26 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
   - Stint breakdown
   - Lap-by-lap performance chart
 
----
+## 🖥️ Live Demo
+
+👉 [f1-data-react.vercel.app](https://f1-data-react.vercel.app/)
 
 ## 📸 Preview
 
-### 🏠 Home Page
+### Home Page
 ![Home](./assets/Home.png)
 
-### 🔎 Search Dropdowns
+### Search Interface
 ![Search](./assets/Search.png)
 
-### 📄 Session Results
+### Session Results
 ![Results](./assets/Results.png)
 
-### 👤 Driver Details
+### Driver Overview
 ![Driver Results](./assets/DriverResults.png)
 
----
+### Lap Time Chart
+![Chart](./assets/Chart.png)
 
 ## 🛠 Tech Stack
 
@@ -47,8 +47,6 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
 - Framer Motion for animations
 - React Router
 - [OpenF1 API](https://openf1.org/)
-
----
 
 ## 🧑‍💻 Getting Started
 
@@ -62,3 +60,4 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
 git clone https://github.com/RandyKR1/f1-data-react.git
 cd f1-data-react
 npm install
+npm run dev
