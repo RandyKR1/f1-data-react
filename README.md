@@ -45,6 +45,7 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
 - React.js (Vite)
 - Bootstrap 5
 - Framer Motion for animations
+- ReCharts
 - React Router
 - [OpenF1 API](https://openf1.org/)
 
