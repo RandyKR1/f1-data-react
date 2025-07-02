@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     getLaps,
     getStints,
@@ -22,6 +22,8 @@ const DriverRaceResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null);
     const [positionInfo, setPositionInfo] = useState(null);
+    const navigate = useNavigate();
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -90,7 +92,22 @@ const DriverRaceResults = () => {
 
     return (
         <div className="container py-4">
-            {/* Header */}
+            <div
+                style={{
+                    position: "absolute",
+                    top: "20px",
+                    left: "20px",
+                    zIndex: 1000,
+                }}
+            >
+                <button
+                    onClick={() => navigate(-1)}
+                    className="btn btn-outline-secondary"
+                >
+                    ← Back to Results
+                </button>
+            </div>
+
             <div className="row align-items-center mb-5">
                 <div className="col-md-3 text-center">
                     <img
