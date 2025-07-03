@@ -27,6 +27,21 @@ const PracticeResults = () => {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null)
   const [positionInfo, setPositionInfo] = useState(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 750) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -112,19 +127,19 @@ const PracticeResults = () => {
         </motion.div>
       </div>
 
-      <div className="row mt-5 mb-2 d-flex justify-content-center">
+      <div className="row my-5 d-flex justify-content-center">
         <motion.div
           className="col-12 align-items-center"
-          initial={{ x: 50, opacity: 0 }}
-          whileInView={{ x: 0, opacity: 1 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
           <Weather sessionKey={sessionKey} />
         </motion.div>
 
         <motion.div
-          initial={{ x: 50, opacity: 0 }}
-          whileInView={{ x: 0, opacity: 1 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           transition={{ duration: 1 }}
           className="row mb-4"
         >
@@ -135,8 +150,8 @@ const PracticeResults = () => {
 
         <motion.div
           className="row"
-          initial={{ x: -50, opacity: 0 }}
-          whileInView={{ x: 0, opacity: 1 }}
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
           <div className="col-md-6 text-center mb-4">
@@ -156,15 +171,25 @@ const PracticeResults = () => {
         </motion.div>
       </div>
 
-      <div className="row mb-3">
-        <button
+      {showScrollTop && (
+        <motion.button
           onClick={scrollToTop}
-          className="btn btn-dark "
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="btn btn-dark position-fixed"
+          style={{
+            bottom: "40px",
+            right: "40px",
+            zIndex: 1000,
+            borderRadius: "50%",
+            padding: "0.75rem 1rem",
+          }}
           aria-label="Back to top"
         >
-          Back to Top ↑
-        </button>
-      </div>
+          ↑
+        </motion.button>
+      )}
 
 
     </div>

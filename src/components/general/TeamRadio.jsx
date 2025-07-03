@@ -32,7 +32,7 @@ const TeamRadio = ({ sessionKey }) => {
 
 
     if (loading || !drivers.length || !teamRadio.length) {
-        return <p>Loading Team Radio Data...</p>;
+        return <p>Loading Team Radio Data... Try Refreshing</p>;
     }
 
     //toggles the team radio dropdown

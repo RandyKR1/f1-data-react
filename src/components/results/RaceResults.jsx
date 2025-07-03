@@ -28,6 +28,21 @@ const RaceResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
     const [positionInfo, setPositionInfo] = useState(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 750) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -95,13 +110,15 @@ const RaceResults = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1 }}
                 >
-                    <FinalRaceClassification
-                        laps={laps}
-                        drivers={drivers}
-                        sessionKey={sessionKey}
-                        sessionName={sessionInfo.session_name}
-                        positionInfo={positionInfo}
-                    />
+                    <div className="table-responsive">
+                        <FinalRaceClassification
+                            laps={laps}
+                            drivers={drivers}
+                            sessionKey={sessionKey}
+                            sessionName={sessionInfo.session_name}
+                            positionInfo={positionInfo}
+                        />
+                    </div>
                 </motion.div>
             </div>
 
@@ -120,37 +137,36 @@ const RaceResults = () => {
 
 
 
-            <div className="row mt-5 mb-2 d-flex justify-content-center">
+            <div className="row my-5 d-flex justify-content-center">
                 <motion.div
                     className="col-md-12"
-                    initial={{ x: 50, opacity: 0 }}
-                    whileInView={{ x: 0, opacity: 1 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     transition={{ duration: 1 }}
                 >
                     <Weather sessionKey={sessionKey} />
                 </motion.div>
 
                 <div
-                    className="row"
-                    style={{ marginBottom: "20px" }}>
+                    className="row mb-4">
                     <p className="fs-3 text-center">Longest Stint By Compound</p>
                     <LongestStintByCompound stints={stints} drivers={drivers} />
                 </div>
 
                 <motion.div
                     className="row"
-                    initial={{ x: -50, opacity: 0 }}
-                    whileInView={{ x: 0, opacity: 1 }}
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     transition={{ duration: 1 }}
                 >
-                    <div className="col-md-6 text-center">
+                    <div className="col-md-6 text-center mb-4">
                         <p className="fs-3">Team Radio Messages</p>
                         <div
                             style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <TeamRadio sessionKey={sessionKey} />
                         </div>
                     </div>
-                    <div className="col-md-6 text-center ">
+                    <div className="col-md-6 text-center mb-4">
                         <p className="fs-3">Race Control Messages</p>
                         <div
                             style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
@@ -160,15 +176,25 @@ const RaceResults = () => {
                 </motion.div>
             </div>
 
-            <div className="row mb-3">
-                <button
+            {showScrollTop && (
+                <motion.button
                     onClick={scrollToTop}
-                    className="btn btn-dark "
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="btn btn-dark position-fixed"
+                    style={{
+                        bottom: "40px",
+                        right: "40px",
+                        zIndex: 1000,
+                        borderRadius: "50%",
+                        padding: "0.75rem 1rem",
+                    }}
                     aria-label="Back to top"
                 >
-                    Back to Top ↑
-                </button>
-            </div>
+                    ↑
+                </motion.button>
+            )}
         </div>
     )
 }
