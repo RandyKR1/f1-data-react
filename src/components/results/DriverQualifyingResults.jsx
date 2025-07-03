@@ -133,7 +133,7 @@ const DriverPracticeResults = () => {
                 <div className="col-md-6">
                     <div className="card shadow-sm">
                         <div className="card-body">
-                            <p className="card-title fw-bold mb-1">Finishing Position</p>
+                            <p className="card-title fw-bold mb-1">Qualifying Position</p>
                             <h5 className="mb-0">P{finalPosition}</h5>
                         </div>
                     </div>

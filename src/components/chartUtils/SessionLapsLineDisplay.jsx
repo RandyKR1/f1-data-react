@@ -14,8 +14,9 @@ const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driv
             <Tooltip formatter={(value) => lapToMinFormat(value)} />
             <Legend verticalAlign="bottom" height={60} wrapperStyle={{
                 display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center', // or "space-between"
+                flexDirection: 'column',
+                alignItems: 'center',
+                lineHeight: '24px',
             }} />
 
             {visibleLines.lapTime && (
