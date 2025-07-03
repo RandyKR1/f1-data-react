@@ -50,26 +50,40 @@ const Weather = ({ sessionKey }) => {
 
 
     return (
-        <div className="container d-flex justify-content-center mb-5">
-            <div className="col-md-3 text-center">
-                <p className="fs-4">Air Temp</p>
-                <p className="fs-5">High: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
-                <p className="fs-5">Low: {minAirTempCel?.air_temperature}°C / {minAirTempFar}°F</p>
-            </div>
-            <div className="col-md-3 text-center">
-                <p className="fs-4">Track Temp</p>
-                <p className="fs-5">High: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
-                <p className="fs-5">Low: {minTrackTempCel?.track_temperature}°C / {minTrackTempFar}°F</p>
-            </div>
-            <div className="col-md-3 text-center">
-                <p className="fs-4">Wind</p>
-                <p className="fs-5">Direction: {windDirection}</p>
-                <p className="fs-5">Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
-            </div>
-            <div className="col-md-3 text-center">
-                <p className="fs-4">Precipitation</p>
-                <p className="fs-5">Humidity: {humidity}%</p>
-                <p className="fs-5">Rain During Session?: {rain}</p>
+        <div className="container mb-5 ">
+            <div className="row justify-content-center">
+
+                <div className="col-md-3 col-12 text-center mb-2">
+                    <div className="card p-3 h-100 justify-content-center">
+                        <p className="fs-4">Air Temp</p>
+                        <p className="fs-5">High: {maxAirTempCel?.air_temperature}°C / {maxAirTempFar}°F</p>
+                        <p className="fs-5 mb-1">Low: {minAirTempCel?.air_temperature}°C / {minAirTempFar}°F</p>
+                    </div>
+                </div>
+
+                <div className="col-md-3 col-12 text-center mb-2">
+                    <div className="card p-3 h-100 justify-content-center">
+                        <p className="fs-4">Track Temp</p>
+                        <p className="fs-5">High: {maxTrackTempCel?.track_temperature}°C / {maxTrackTempFar}°F</p>
+                        <p className="fs-5 mb-1">Low: {minTrackTempCel?.track_temperature}°C / {minTrackTempFar}°F</p>
+                    </div>
+                </div>
+
+                <div className="col-md-3 col-12 text-center mb-2">
+                    <div className="card p-3 h-100 justify-content-center">
+                        <p className="fs-4">Wind</p>
+                        <p className="fs-5">Direction: {windDirection}</p>
+                        <p className="fs-5 mb-1">Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
+                    </div>
+                </div>
+
+                <div className="col-md-3 col-12 text-center mb-2">
+                    <div className="card p-3 h-100 justify-content-center" mb-2>
+                        <p className="fs-4">Precipitation</p>
+                        <p className="fs-5">Humidity: {humidity}%</p>
+                        <p className="fs-5 mb-1">Rain During Session?: {rain}</p>
+                    </div>
+                </div>
             </div>
         </div>
     )

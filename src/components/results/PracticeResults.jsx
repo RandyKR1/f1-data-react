@@ -77,7 +77,7 @@ const PracticeResults = () => {
   };
 
   return (
-    <div className=" container vw-100">
+    <div className="container vw-100">
       <TimedAlert
         message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API. This Could Impact Grid Position Penalties As Well"}
       />
@@ -87,8 +87,12 @@ const PracticeResults = () => {
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 3 }}>
 
-        <h3 className="col-md-12" style={{ fontSize: "48px" }}>{meetingInfo.meeting_official_name}</h3>
-        <h3 className="col-md-12" style={{ fontSize: "38px" }}>Free {sessionInfo.session_name} Results</h3>
+        <h3 className="display-5 d-none d-md-block">{meetingInfo.meeting_official_name}</h3>
+        <h3 className="display-6 d-none d-md-block">Free {sessionInfo.session_name} Results</h3>
+
+        {/* Mobile Styling */}
+        <h4 className="d-block d-md-none text-center">{meetingInfo.meeting_official_name}</h4>
+        <h5 className="d-block d-md-none text-center">Free {sessionInfo.session_name} Results</h5>
 
       </motion.div>
 
@@ -99,13 +103,15 @@ const PracticeResults = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          <FinalClassificationTable
-            laps={laps}
-            drivers={drivers}
-            sessionKey={sessionKey}
-            sessionName={sessionInfo.session_name}
-            positionInfo={positionInfo}
-          />
+          <div className="table-responsive">
+            <FinalClassificationTable
+              laps={laps}
+              drivers={drivers}
+              sessionKey={sessionKey}
+              sessionName={sessionInfo.session_name}
+              positionInfo={positionInfo}
+            />
+          </div>
         </motion.div>
       </div>
 
@@ -122,7 +128,7 @@ const PracticeResults = () => {
 
       <div className="row my-5 d-flex justify-content-center">
         <motion.div
-          className="col-md-12"
+          className="col-12 align-items-center"
           initial={{ x: 50, opacity: 0 }}
           whileInView={{ x: 0, opacity: 1 }}
           transition={{ duration: 1 }}
@@ -130,12 +136,15 @@ const PracticeResults = () => {
           <Weather sessionKey={sessionKey} />
         </motion.div>
 
-        <div
-          className="row"
-          style={{ marginBottom: "20px" }}>
+        <motion.div
+          initial={{ x: 50, opacity: 0 }}
+          whileInView={{ x: 0, opacity: 1 }}
+          transition={{ duration: 1 }}
+          className="row mb-4"
+          >
           <p className="fs-3 text-center">Longest Stint By Compound</p>
           <LongestStintByCompound stints={stints} drivers={drivers} />
-        </div>
+        </motion.div>
 
 
         <motion.div
@@ -144,14 +153,14 @@ const PracticeResults = () => {
           whileInView={{ x: 0, opacity: 1 }}
           transition={{ duration: 1 }}
         >
-          <div className="col-md-6 text-center">
+          <div className="col-md-6 text-center mb-4">
             <p className="fs-3">Team Radio Messages</p>
             <div
               style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
               <TeamRadio sessionKey={sessionKey} />
             </div>
           </div>
-          <div className="col-md-6 text-center ">
+          <div className="col-md-6 text-center mb-4">
             <p className="fs-3">Race Control Messages</p>
             <div
               style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
