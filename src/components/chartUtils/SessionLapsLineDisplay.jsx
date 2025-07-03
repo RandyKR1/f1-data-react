@@ -7,12 +7,16 @@ import { lapToMinFormat } from "../../utilities";
 
 const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driver2 }) => (
     <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 60, bottom: 5 }}>
             <CartesianGrid strokeDasharray="7 7" />
             <XAxis dataKey="lapNumber" label={{ value: "Lap", position: "insideBottomRight", offset: -5 }} />
-            <YAxis label={{ value: "Time", position: "insideLeft"}} tickFormatter={lapToMinFormat} domain={["dataMin - 2", "dataMax + 2"]} />
+            <YAxis label={{ value: "Time", position: "insideLeft" }} tickFormatter={lapToMinFormat} domain={["dataMin - 2", "dataMax + 2"]} />
             <Tooltip formatter={(value) => lapToMinFormat(value)} />
-            <Legend verticalAlign="top" height={36} />
+            <Legend verticalAlign="bottom" height={60} wrapperStyle={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center', // or "space-between"
+            }} />
 
             {visibleLines.lapTime && (
                 <Line type="monotone" dataKey="lapDuration1" stroke="#1b4f72" name={`${driver1} Lap Time`} dot={false} connectNulls />
@@ -24,7 +28,7 @@ const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driv
                 <Line type="monotone" dataKey="sector2_1" stroke="#3498db" name={`${driver1} Sector 2`} dot={false} connectNulls />
             )}
             {visibleLines.sector3 && (
-                <Line type="monotone" dataKey="sector3_1" stroke="#85c1e9" name={`${driver1} Sector 3`} dot={false} connectNulls />
+                <Line type="monotone" dataKey="sector3_1" stroke="#5499c7" name={`${driver1} Sector 3`} dot={false} connectNulls />
             )}
 
             {compareMode && visibleLines.lapTime && (
@@ -37,7 +41,7 @@ const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driv
                 <Line type="monotone" dataKey="sector2_2" stroke="#ef5350" name={`${driver2} Sector 2`} dot={false} connectNulls />
             )}
             {compareMode && visibleLines.sector3 && (
-                <Line type="monotone" dataKey="sector3_2" stroke="#ef9a9a" name={`${driver2} Sector 3`} dot={false} connectNulls />
+                <Line type="monotone" dataKey="sector3_2" stroke="#ec7063" name={`${driver2} Sector 3`} dot={false} connectNulls />
             )}
         </LineChart>
     </ResponsiveContainer>

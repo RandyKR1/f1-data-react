@@ -84,7 +84,7 @@ const FastestLapLineDisplay = ({ laps, drivers, visibleLines, compareMode, drive
             <ResponsiveContainer width="100%" height={300}>
                 <ComposedChart
                     data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    margin={{ top: 20, right: 30, left: 60, bottom: 5 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="sector" />
@@ -93,7 +93,7 @@ const FastestLapLineDisplay = ({ laps, drivers, visibleLines, compareMode, drive
                         tickFormatter={lapToMinFormat}
                     />
                     <Tooltip formatter={lapToMinFormat} />
-                    <Legend verticalAlign="top" height={36} />
+                    <Legend verticalAlign="bottom" height={60} />
 
                     {/* Bars - sector durations */}
                     {visibleLines.lapTime && (
