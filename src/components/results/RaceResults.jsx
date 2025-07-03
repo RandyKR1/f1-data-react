@@ -28,21 +28,6 @@ const RaceResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
     const [positionInfo, setPositionInfo] = useState(null);
-    const [showScrollTop, setShowScrollTop] = useState(false);
-
-
-    useEffect(() => {
-        const handleScroll = () => {
-            if (window.scrollY > 750) {
-                setShowScrollTop(true);
-            } else {
-                setShowScrollTop(false);
-            }
-        };
-
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -94,8 +79,12 @@ const RaceResults = () => {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 2 }}>
 
-                <h3 className="col-md-12" style={{ fontSize: "48px" }}>{meetingInfo.meeting_official_name}</h3>
-                <h3 className="col-md-12" style={{ fontSize: "38px" }}> {sessionInfo.session_name} Results</h3>
+                <h3 className="display-5 d-none d-md-block">{meetingInfo.meeting_official_name}</h3>
+                <h3 className="display-6 d-none d-md-block">{sessionInfo.session_name} Results</h3>
+
+                {/* Mobile Styling */}
+                <h4 className="d-block d-md-none text-center">{meetingInfo.meeting_official_name}</h4>
+                <h5 className="d-block d-md-none text-center">{sessionInfo.session_name} Results</h5>
             </motion.div>
 
             <div
@@ -131,7 +120,7 @@ const RaceResults = () => {
 
 
 
-            <div className="row my-5 d-flex justify-content-center">
+            <div className="row mt-5 mb-2 d-flex justify-content-center">
                 <motion.div
                     className="col-md-12"
                     initial={{ x: 50, opacity: 0 }}
@@ -141,11 +130,11 @@ const RaceResults = () => {
                     <Weather sessionKey={sessionKey} />
                 </motion.div>
 
-                <div 
-                    className="row" 
+                <div
+                    className="row"
                     style={{ marginBottom: "20px" }}>
-                        <p className="fs-3 text-center">Longest Stint By Compound</p>
-                        <LongestStintByCompound stints={stints} drivers={drivers} />
+                    <p className="fs-3 text-center">Longest Stint By Compound</p>
+                    <LongestStintByCompound stints={stints} drivers={drivers} />
                 </div>
 
                 <motion.div
@@ -153,7 +142,7 @@ const RaceResults = () => {
                     initial={{ x: -50, opacity: 0 }}
                     whileInView={{ x: 0, opacity: 1 }}
                     transition={{ duration: 1 }}
-                    >
+                >
                     <div className="col-md-6 text-center">
                         <p className="fs-3">Team Radio Messages</p>
                         <div
@@ -171,25 +160,15 @@ const RaceResults = () => {
                 </motion.div>
             </div>
 
-            {showScrollTop && (
-                <motion.button
+            <div className="row mb-3">
+                <button
                     onClick={scrollToTop}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="btn btn-dark position-fixed"
-                    style={{
-                        bottom: "40px",
-                        right: "40px",
-                        zIndex: 1000,
-                        borderRadius: "50%",
-                        padding: "0.75rem 1rem",
-                    }}
+                    className="btn btn-dark "
                     aria-label="Back to top"
                 >
-                ↑
-                </motion.button>
-            )}
+                    Back to Top ↑
+                </button>
+            </div>
         </div>
     )
 }

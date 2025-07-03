@@ -27,20 +27,6 @@ const PracticeResults = () => {
   const [sessionInfo, setSessionInfo] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null)
   const [positionInfo, setPositionInfo] = useState(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 750) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,7 +112,7 @@ const PracticeResults = () => {
         </motion.div>
       </div>
 
-      <div className="row my-5 d-flex justify-content-center">
+      <div className="row mt-5 mb-2 d-flex justify-content-center">
         <motion.div
           className="col-12 align-items-center"
           initial={{ x: 50, opacity: 0 }}
@@ -141,7 +127,7 @@ const PracticeResults = () => {
           whileInView={{ x: 0, opacity: 1 }}
           transition={{ duration: 1 }}
           className="row mb-4"
-          >
+        >
           <p className="fs-3 text-center">Longest Stint By Compound</p>
           <LongestStintByCompound stints={stints} drivers={drivers} />
         </motion.div>
@@ -170,25 +156,17 @@ const PracticeResults = () => {
         </motion.div>
       </div>
 
-      {showScrollTop && (
-        <motion.button
+      <div className="row mb-3">
+        <button
           onClick={scrollToTop}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="btn btn-dark position-fixed"
-          style={{
-            bottom: "40px",
-            right: "40px",
-            zIndex: 1000,
-            borderRadius: "50%",
-            padding: "0.75rem 1rem",
-          }}
+          className="btn btn-dark "
           aria-label="Back to top"
         >
-          ↑
-        </motion.button>
-      )}
+          Back to Top ↑
+        </button>
+      </div>
+
+
     </div>
   )
 };

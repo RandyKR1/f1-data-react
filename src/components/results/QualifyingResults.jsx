@@ -27,21 +27,6 @@ const QualifyingResults = () => {
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null)
     const [positionInfo, setPositionInfo] = useState(null)
-    const [showScrollTop, setShowScrollTop] = useState(false);
-
-
-    useEffect(() => {
-        const handleScroll = () => {
-            if (window.scrollY > 750) {
-                setShowScrollTop(true);
-            } else {
-                setShowScrollTop(false);
-            }
-        };
-
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
 
 
     useEffect(() => {
@@ -89,8 +74,12 @@ const QualifyingResults = () => {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 2 }}>
 
-                <h3 className="col-md-12" style={{ fontSize: "48px" }}>{meetingInfo.meeting_official_name}</h3>
-                <h3 className="col-md-12" style={{ fontSize: "38px" }}> {sessionInfo.session_name} Results</h3>
+                <h3 className="display-5 d-none d-md-block">{meetingInfo.meeting_official_name}</h3>
+                <h3 className="display-6 d-none d-md-block">{sessionInfo.session_name} Results</h3>
+
+                {/* Mobile Styling */}
+                <h4 className="d-block d-md-none text-center">{meetingInfo.meeting_official_name}</h4>
+                <h5 className="d-block d-md-none text-center">{sessionInfo.session_name} Results</h5>
 
             </motion.div>
 
@@ -101,13 +90,15 @@ const QualifyingResults = () => {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1 }}
                 >
-                    <FinalClassificationTable
-                        laps={laps}
-                        drivers={drivers}
-                        sessionKey={sessionKey}
-                        sessionName={sessionInfo.session_name}
-                        positionInfo={positionInfo}
-                    />
+                    <div className="table-responsive">
+                        <FinalClassificationTable
+                            laps={laps}
+                            drivers={drivers}
+                            sessionKey={sessionKey}
+                            sessionName={sessionInfo.session_name}
+                            positionInfo={positionInfo}
+                        />
+                    </div>
                 </motion.div>
             </div>
 
@@ -122,7 +113,7 @@ const QualifyingResults = () => {
                 </motion.div>
             </div>
 
-            <div className="row my-5 d-flex justify-content-center">
+            <div className="row mt-5 mb-2 d-flex justify-content-center">
                 <motion.div
                     className="col-md-12"
                     initial={{ x: 50, opacity: 0 }}
@@ -132,20 +123,20 @@ const QualifyingResults = () => {
                     <Weather sessionKey={sessionKey} />
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                     className="row"
                     initial={{ x: -50, opacity: 0 }}
                     whileInView={{ x: 0, opacity: 1 }}
                     transition={{ duration: 1 }}
-                    >
-                    <div className="col-md-6 text-center">
-                        <p className="fw-bold fs-3">Team Radio Messages</p>
+                >
+                    <div className="col-md-6 text-center mb-4">
+                        <p className="fs-3">Team Radio Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <TeamRadio sessionKey={sessionKey} />
                         </div>
                     </div>
-                    <div className="col-md-6 text-center ">
-                        <p className="fw-bold fs-3">Race Control Messages</p>
+                    <div className="col-md-6 text-center mb-4">
+                        <p className="fs-3">Race Control Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <RaceControl sessionKey={sessionKey} />
 
@@ -154,25 +145,16 @@ const QualifyingResults = () => {
                 </motion.div>
             </div>
 
-            {showScrollTop && (
-                <motion.button
+            <div className="row mb-3">
+                <button
                     onClick={scrollToTop}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="btn btn-dark position-fixed"
-                    style={{
-                        bottom: "40px",
-                        right: "40px",
-                        zIndex: 1000,
-                        borderRadius: "50%",
-                        padding: "0.75rem 1rem",
-                    }}
+                    className="btn btn-dark "
                     aria-label="Back to top"
                 >
-                    ↑
-                </motion.button>
-            )}
+                    Back to Top ↑
+                </button>
+            </div>
+
         </div>
     )
 
