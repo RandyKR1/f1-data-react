@@ -110,7 +110,7 @@ const DriverPracticeResults = () => {
                     ← Back to Results
                 </button>
             </div>
-            <div className="row align-items-center mb-5">
+            <div className="row align-items-center my-5">
                 <div className="col-md-3 text-center">
                     <img
                         src={headShot}

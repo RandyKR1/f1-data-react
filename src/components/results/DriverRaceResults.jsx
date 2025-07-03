@@ -108,7 +108,7 @@ const DriverRaceResults = () => {
                 </button>
             </div>
 
-            <div className="row align-items-center mb-5">
+            <div className="row align-items-center my-5">
                 <div className="col-md-3 text-center">
                     <img
                         src={headShot}
@@ -171,7 +171,8 @@ const DriverRaceResults = () => {
             <div className="col-md-12 mb-5">
                 <LapTimeChart
                     sessionKey={sessionKey}
-                    drivers={drivers} laps={laps} />
+                    drivers={drivers} laps={laps}
+                    initialDriverNumber={driver_number} />
             </div>
         </div>
     );
