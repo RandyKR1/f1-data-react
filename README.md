@@ -21,7 +21,7 @@ Powered by the free and open [OpenF1 API](https://openf1.org/).
 
 ## 🖥️ Live Demo
 
-👉 [f1-data-react.vercel.app](https://f1-data-react.vercel.app/)
+👉 [f1-data-react.vercel.app](https://formula-data.vercel.app/)
 > ⚠️ Mobile UI is in development. Coming soon!
 
 ## 📸 Preview
