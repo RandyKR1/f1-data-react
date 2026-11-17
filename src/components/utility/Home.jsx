@@ -8,7 +8,7 @@ const Home = () => {
             align-items-center justify-content-center 
             text-center 
             container-fluid 
-            vh-100 vw-100
+            vh-100
             px-3 py-4"
         >
             <motion.h1

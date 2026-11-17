@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { lapToMinFormat, mapDriverNames, groupByDriverName } from "../../utilities";
 
 const FinalRaceClassification = ({ laps, drivers, sessionKey, sessionName, positionInfo }) => {
+  // Hooks must run before any early return (Rules of Hooks)
+  const navigate = useNavigate();
+
   if (!laps?.length || !drivers?.length || !positionInfo?.length) return null;
 
-  const navigate = useNavigate();
   const lapsWithNames = mapDriverNames(laps, drivers);
   const positionWithNames = mapDriverNames(positionInfo, drivers);
   const positionsByName = groupByDriverName(positionWithNames);
@@ -55,7 +57,7 @@ const FinalRaceClassification = ({ laps, drivers, sessionKey, sessionName, posit
 
 
   return (
-    <div className="col-xs-12">
+    <div className="col-12">
       <table className="table table-light table-striped-columns">
         <thead>
           <tr>

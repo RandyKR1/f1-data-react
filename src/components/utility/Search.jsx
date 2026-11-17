@@ -13,13 +13,17 @@ const Search = () => {
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedSessionKey, setSelectedSessionKey] = useState("");
   const [selectedSessionObj, setSelectedSessionObj] = useState(null);
+  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchMeeting = async () => {
-      const data = await getMeetings();
-      setMeetings(data);
+      try {
+        setMeetings(await getMeetings());
+      } catch {
+        setError("Could not load tracks. Please refresh to try again.");
+      }
     };
     fetchMeeting();
   }, []);
@@ -40,7 +44,13 @@ const Search = () => {
   useEffect(() => {
     const fetchSessions = async () => {
       if (!selectedTrack || !selectedYear) return;
-      const data = await getSessions();
+      let data;
+      try {
+        data = await getSessions();
+      } catch {
+        setError("Could not load sessions. Please try again.");
+        return;
+      }
       const filtered = data.filter(
         (sess) =>
           sess.location === selectedTrack &&
@@ -75,12 +85,13 @@ const Search = () => {
 
   return (
     <motion.div
-      className="container py-4 col-xs-12"
+      className="container py-4 col-12"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 3 }}>
       <div className="row justify-content-center">
         <div className="col-md-10 d-flex flex-column gap-3">
+          {error && <div className="alert alert-danger mb-0">{error}</div>}
           <DropdownSelector
             title="Select a Track"
             options={uniqueTracks}

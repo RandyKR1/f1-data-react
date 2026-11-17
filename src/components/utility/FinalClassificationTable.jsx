@@ -3,10 +3,11 @@ import React from "react";
 import { lapToMinFormat, mapDriverNames, groupByDriverName } from "../../utilities";
 
 const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, positionInfo }) => {
-  if (!laps?.length || !drivers?.length || !positionInfo?.length) return null;
-
+  // Hooks must run before any early return (Rules of Hooks)
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (!laps?.length || !drivers?.length || !positionInfo?.length) return null;
 
   const lapsWithNames = mapDriverNames(laps, drivers);
   const positionWithNames = mapDriverNames(positionInfo, drivers);
@@ -51,7 +52,7 @@ const FinalClassificationTable = ({ laps, drivers, sessionKey, sessionName, posi
     : "practice-results";
 
   return (
-    <div className="col-xs-12">
+    <div className="col-12">
       <table className="table">
         <thead>
           <tr>

@@ -14,7 +14,8 @@ import FinalClassificationTable from "../utility/FinalClassificationTable";
 import Search from "../utility/Search";
 import RaceControl from "../general/RaceControl";
 import LapTimeChart from "../utility/LapTimeChart"
-import TimedAlert from "../utility/TimedAlert";
+import DismissibleAlert from "../utility/DismissibleAlert";
+import ErrorMessage from "../utility/ErrorMessage";
 import LongestStintByCompound from "../utility/LongestStintByCompound"
 import TeamRadio from "../general/TeamRadio";
 
@@ -24,6 +25,7 @@ const PracticeResults = () => {
   const [laps, setLaps] = useState([])
   const [stints, setStints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [sessionInfo, setSessionInfo] = useState(null);
   const [meetingInfo, setMeetingInfo] = useState(null)
   const [positionInfo, setPositionInfo] = useState(null);
@@ -46,31 +48,44 @@ const PracticeResults = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [lapData, stintData, driverData, positionData, sessionData, meetingData] = await Promise.all([
-        getLaps(sessionKey),
-        getStints(sessionKey),
-        getDrivers(sessionKey),
-        getPosition(sessionKey),
-        getSessions(),
-        getMeetings()
-      ]);
-      const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
-      const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
+      setError(null);
+      try {
+        const [lapData, stintData, driverData, positionData, sessionData, meetingData] = await Promise.all([
+          getLaps(sessionKey),
+          getStints(sessionKey),
+          getDrivers(sessionKey),
+          getPosition(sessionKey),
+          getSessions(),
+          getMeetings()
+        ]);
+        const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
+        if (!foundSession) throw new Error("Session not found.");
+        const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
 
-      setLaps(lapData);
-      setStints(stintData);
-      setDrivers(driverData);
-      setPositionInfo(positionData);
-      setSessionInfo(foundSession);
-      setMeetingInfo(foundMeeting);
-      setLoading(false);
+        setLaps(lapData);
+        setStints(stintData);
+        setDrivers(driverData);
+        setPositionInfo(positionData);
+        setSessionInfo(foundSession);
+        setMeetingInfo(foundMeeting);
+      } catch (err) {
+        setError(err.isAxiosError
+          ? "Could not load session data from OpenF1. Please try again in a moment."
+          : err.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
   }, [sessionKey]);
 
-  if (loading || !laps.length || !stints.length || !drivers.length) {
+  if (loading) {
     return <div className="text-center mt-5">Loading practice results...</div>;
+  }
+  if (error) return <ErrorMessage message={error} />;
+  if (!laps.length || !drivers.length) {
+    return <ErrorMessage message="No lap data is available for this session yet." />;
   }
 
   const scrollToTop = () => {
@@ -78,8 +93,8 @@ const PracticeResults = () => {
   };
 
   return (
-    <div className="container vw-100">
-      <TimedAlert
+    <div className="container">
+      <DismissibleAlert
         message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API. This Could Impact Grid Position Penalties As Well"}
       />
       <motion.div
@@ -88,12 +103,12 @@ const PracticeResults = () => {
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 3 }}>
 
-        <h3 className="display-5 d-none d-md-block">{meetingInfo.meeting_official_name}</h3>
-        <h3 className="display-6 d-none d-md-block">Free {sessionInfo.session_name} Results</h3>
+        <h3 className="display-5 d-none d-md-block">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h3>
+        <h3 className="display-6 d-none d-md-block">Free {sessionInfo?.session_name} Results</h3>
 
         {/* Mobile Styling */}
-        <h4 className="d-block d-md-none text-center">{meetingInfo.meeting_official_name}</h4>
-        <h5 className="d-block d-md-none text-center">Free {sessionInfo.session_name} Results</h5>
+        <h4 className="d-block d-md-none text-center">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h4>
+        <h5 className="d-block d-md-none text-center">Free {sessionInfo?.session_name} Results</h5>
 
       </motion.div>
 
@@ -109,7 +124,7 @@ const PracticeResults = () => {
               laps={laps}
               drivers={drivers}
               sessionKey={sessionKey}
-              sessionName={sessionInfo.session_name}
+              sessionName={sessionInfo?.session_name}
               positionInfo={positionInfo}
             />
           </div>

@@ -1,6 +1,6 @@
 import React from "react";
 
-const LongestStintByCompund = ({ stints, drivers }) => {
+const LongestStintByCompound =({ stints, drivers }) => {
     if (!stints?.length || !drivers?.length) return null;
 
     const getDriverName = (driver_number) =>
@@ -35,8 +35,8 @@ const LongestStintByCompund = ({ stints, drivers }) => {
                     </tr>
                 </thead>
                 <tbody>
-                    {getLongestStintByCompound().map((stint, index) => (
-                        <tr key={index}>
+                    {longestStints.map((stint) => (
+                        <tr key={stint.compound}>
                             <td>{stint.compound}</td>
                             <td>{stint.driver}</td>
                             <td>{stint.length}</td>
@@ -51,4 +51,4 @@ const LongestStintByCompund = ({ stints, drivers }) => {
     );
 };
 
-export default LongestStintByCompund;
+export default LongestStintByCompound;

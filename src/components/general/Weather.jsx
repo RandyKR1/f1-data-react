@@ -5,24 +5,28 @@ import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, toMPH, getWindDirection
 const Weather = ({ sessionKey }) => {
     const [weather, setWeather] = useState([])
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!sessionKey) return;
 
         const fetchWeather = async () => {
-            const data = await getWeather(sessionKey);
-            setWeather(data);
-            setLoading(false);
-        }
+            setLoading(true);
+            setError(null);
+            try {
+                setWeather(await getWeather(sessionKey));
+            } catch {
+                setError("Could not load weather data.");
+            } finally {
+                setLoading(false);
+            }
+        };
         fetchWeather();
     }, [sessionKey]);
 
-    // console.log("Weather Data:", weather)
-
-
-    if (loading || !weather.length) {
-        return <p>Loading Weather Data...</p>;
-    }
+    if (loading) return <p className="text-center">Loading weather data...</p>;
+    if (error) return <p className="text-center text-danger">{error}</p>;
+    if (!weather.length) return <p className="text-center">No weather data for this session.</p>;
 
     const minAirTempCel = getMinBy(weather, "air_temperature")
     const maxAirTempCel = getMaxBy(weather, "air_temperature")
@@ -78,7 +82,7 @@ const Weather = ({ sessionKey }) => {
                 </div>
 
                 <div className="col-md-3 col-12 text-center mb-2">
-                    <div className="card p-3 h-100 justify-content-center" mb-2>
+                    <div className="card p-3 h-100 justify-content-center">
                         <p className="fs-4">Precipitation</p>
                         <p className="fs-5">Humidity: {humidity}%</p>
                         <p className="fs-5 mb-1">Rain During Session?: {rain}</p>

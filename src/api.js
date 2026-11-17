@@ -6,18 +6,22 @@ const BASE_URL = 'https://api.openf1.org/v1'
  * Reusable api call for OpenF1 endpoints
  * @param {string} endpoint - the endpoint to call (e.g. "drivers")
  * @param {string} label - optional label for error logs
- * @returns {Promise<any>} - response data or empty array on error
+ * @returns {Promise<any>} - response data. An empty array means "no data".
+ * @throws on network / server errors so callers can show an error state.
  */
 
 async function fetchData(endpoint, label = 'Data') {
-    try{
+    try {
         const res = await axios.get(`${BASE_URL}/${endpoint}`);
         return res.data;
-    }catch(error){
+    } catch (error) {
+        // OpenF1 responds 404 "No results found" when a query matches nothing.
+        // That is an empty result, not a failure.
+        if (error.response?.status === 404) return [];
         console.error(`Trouble Fetching ${label}:`, error);
-        return [];
-    }   
-};
+        throw error;
+    }
+}
 
 /**api calls to all endpoints*/
 export const getDrivers = (sessionKey) => fetchData(`drivers?session_key=${sessionKey}`, "Driver Data");

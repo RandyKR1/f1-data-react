@@ -4,7 +4,7 @@ const DropdownSelector = ({ title, options, selected, onSelect, className="" }) 
     <Dropdown>
     <Dropdown.Toggle 
       variant="light" 
-      className="w-100 text-cneter text-light bg-secondary">
+      className="w-100 text-center text-light bg-secondary">
       {selected || title}
     </Dropdown.Toggle>
 

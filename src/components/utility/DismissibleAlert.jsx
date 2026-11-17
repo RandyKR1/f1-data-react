@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const TimedAlert = ({ message, className = "alert-warning" }) => {
+const DismissibleAlert =({ message, className = "alert-warning" }) => {
     const [visible, setVisible] = useState(true);
 
     if (!visible) return null;
@@ -18,4 +18,4 @@ const TimedAlert = ({ message, className = "alert-warning" }) => {
     );
 };
 
-export default TimedAlert;
+export default DismissibleAlert;

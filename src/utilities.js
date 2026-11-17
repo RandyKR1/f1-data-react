@@ -122,5 +122,5 @@ export const getDriverFinalPosition = (driverNumber, positionInfo) => {
   );
 
   const finalEntry = driverPositions[driverPositions.length - 1];
-  return finalEntry?.position ?? "N/A";
+  return finalEntry?.position ?? null;
 };

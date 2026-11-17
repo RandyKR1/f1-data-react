@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
     getLaps,
     getStints,
@@ -11,63 +11,74 @@ import {
 import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
 import DriverTeamRadio from "../general/DriverTeamRadio";
 import LapTimeChart from "../utility/LapTimeChart";
+import ErrorMessage from "../utility/ErrorMessage";
 
-const DriverPracticeResults = () => {
+const DriverQualifyingResults = () => {
     const { sessionKey, driver_number } = useParams();
     const [drivers, setDrivers] = useState([]);
     const [laps, setLaps] = useState([]);
     const [stints, setStints] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [sessionInfo, setSessionInfo] = useState(null);
     const [meetingInfo, setMeetingInfo] = useState(null);
     const [positionInfo, setPositionInfo] = useState(null);
-    const navigate = useNavigate();
 
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            const [
-                lapData,
-                stintData,
-                driverData,
-                positionData,
-                sessionData,
-                meetingData,
-            ] = await Promise.all([
-                getLaps(sessionKey),
-                getStints(sessionKey),
-                getDrivers(sessionKey),
-                getPosition(sessionKey),
-                getSessions(),
-                getMeetings(),
-            ]);
+            setError(null);
+            try {
+                const [
+                    lapData,
+                    stintData,
+                    driverData,
+                    positionData,
+                    sessionData,
+                    meetingData,
+                ] = await Promise.all([
+                    getLaps(sessionKey),
+                    getStints(sessionKey),
+                    getDrivers(sessionKey),
+                    getPosition(sessionKey),
+                    getSessions(),
+                    getMeetings(),
+                ]);
 
-            const foundSession = sessionData.find(
-                (s) => s.session_key.toString() === sessionKey
-            );
-            const foundMeeting = meetingData.find(
-                (m) => m.meeting_key === foundSession.meeting_key
-            );
+                const foundSession = sessionData.find(
+                    (s) => s.session_key.toString() === sessionKey
+                );
+                if (!foundSession) throw new Error("Session not found.");
+                const foundMeeting = meetingData.find(
+                    (m) => m.meeting_key === foundSession.meeting_key
+                );
 
-            setLaps(lapData);
-            setStints(stintData);
-            setDrivers(driverData);
-            setPositionInfo(positionData);
-            setSessionInfo(foundSession);
-            setMeetingInfo(foundMeeting);
-            setLoading(false);
+                setLaps(lapData);
+                setStints(stintData);
+                setDrivers(driverData);
+                setPositionInfo(positionData);
+                setSessionInfo(foundSession);
+                setMeetingInfo(foundMeeting);
+            } catch (err) {
+                setError(err.isAxiosError
+                    ? "Could not load session data from OpenF1. Please try again in a moment."
+                    : err.message);
+            } finally {
+                setLoading(false);
+            }
         };
 
         fetchData();
     }, [sessionKey]);
 
     if (loading) return <div className="text-center mt-5">Loading Results...</div>;
+    if (error) return <ErrorMessage message={error} />;
 
     const driver = drivers.find(
         (d) => d.driver_number.toString() === driver_number
     );
-    if (!driver) return <div className="text-center mt-5">Driver not found. Please Refresh The Page</div>;
+    if (!driver) return <ErrorMessage message="Driver not found in this session." />;
 
     const driverLaps = laps.filter(
         (lap) => lap.driver_number.toString() === driver_number
@@ -91,21 +102,9 @@ const DriverPracticeResults = () => {
 
     return (
         <div className="container py-4">
-            <div
-                style={{
-                    position: "absolute",
-                    top: "20px",
-                    left: "20px",
-                    zIndex: 1000,
-                }}
-            >
-                <button
-                    onClick={() => navigate(-1)}
-                    className="btn btn-outline-secondary"
-                >
-                    ← Back to Results
-                </button>
-            </div>
+            <Link to={`/qualy-results/${sessionKey}`} className="btn btn-outline-secondary mb-3">
+                ← Back to Results
+            </Link>
 
             <div className="row align-items-center my-5">
                 <div className="col-md-3 text-center">
@@ -121,9 +120,9 @@ const DriverPracticeResults = () => {
                 </div>
 
                 <div className="col-md-9 text-center">
-                    <h3 className="fw-bold">{meetingInfo.meeting_official_name}</h3>
+                    <h3 className="fw-bold">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h3>
                     <h4 className="text-secondary">
-                        Free {sessionInfo.session_name} Driver Results
+                        {sessionInfo?.session_name} Driver Results
                     </h4>
                 </div>
             </div>
@@ -134,7 +133,7 @@ const DriverPracticeResults = () => {
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Qualifying Position</p>
-                            <h5 className="mb-0">P{finalPosition}</h5>
+                            <h5 className="mb-0">{finalPosition ? `P${finalPosition}` : "N/A"}</h5>
                         </div>
                     </div>
                 </div>
@@ -169,4 +168,4 @@ const DriverPracticeResults = () => {
     );
 };
 
-export default DriverPracticeResults;
+export default DriverQualifyingResults;

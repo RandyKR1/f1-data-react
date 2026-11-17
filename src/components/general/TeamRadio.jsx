@@ -1,82 +1,63 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Accordion from "react-bootstrap/Accordion";
 import { getTeamRadio, getDrivers } from "../../api";
 import { mapDriverNames, groupByDriverName } from "../../utilities";
 
 const TeamRadio = ({ sessionKey }) => {
-    const [teamRadio, setTeamRadio] = useState([])
-    const [drivers, setDrivers] = useState([])
+    const [teamRadio, setTeamRadio] = useState([]);
+    const [drivers, setDrivers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedDriver, setExpandedDriver] = useState(null); // team dropdown state
+    const [error, setError] = useState(null);
 
-    //fetch team radios based on session
     useEffect(() => {
         if (!sessionKey) return;
-        const fetchTeamRadio = async () => {
-            const data = await getTeamRadio(sessionKey);
-            setTeamRadio(data);
-            setLoading(false);
-        }
-        fetchTeamRadio();
+
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [radioData, driverData] = await Promise.all([
+                    getTeamRadio(sessionKey),
+                    getDrivers(sessionKey),
+                ]);
+                setTeamRadio(radioData);
+                setDrivers(driverData);
+            } catch {
+                setError("Could not load team radio.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
     }, [sessionKey]);
 
-    //fetch drivers based on session
-    useEffect(() => {
-        if (!sessionKey) return;
-        const fetchDrivers = async () => {
-            const data = await getDrivers(sessionKey);
-            setDrivers(data);
-            setLoading(false);
-        };
-        fetchDrivers();
-    }, [sessionKey])
+    if (loading) return <p>Loading team radio...</p>;
+    if (error) return <p className="text-danger">{error}</p>;
+    if (!teamRadio.length) return <p>No team radio available for this session.</p>;
 
-
-    if (loading || !drivers.length || !teamRadio.length) {
-        return <p>Loading Team Radio Data... Try Refreshing</p>;
-    }
-
-    //toggles the team radio dropdown
-    const toggleTeam = (driver) => {
-        setExpandedDriver((prev) => (prev === driver ? null : driver));
-    };
-
-
-    const addTeamToTeamRadio = mapDriverNames(teamRadio, drivers)
-    const radioByDriver = groupByDriverName(addTeamToTeamRadio)
-    // console.log("Radio By Driver:", radioByDriver)
-
+    const radioByDriver = groupByDriverName(mapDriverNames(teamRadio, drivers));
 
     return (
-        <div className="accordion" id="raceControlAccordion">
-            {Object.entries(radioByDriver).map(([driver, radios, index]) => (
-                <div className="accordion-item" key={index}>
-                    <h2 className="accordion-header" id={`heading-${index}`}>
-                    <button
-                        onClick={() => toggleTeam(driver)}
-                        className="accordion-button collapsed text-uppercase"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target={`#collapse-${index}`}
-                        aria-expanded="false"
-                        aria-controls={`collapse-${index}`}
-                    >
-                        {driver}
-                    </button>
-                    </h2>
-                    {expandedDriver === driver && (
-                        <ul className="flex flex-col justify-center items-center space-y-2 list-unstyled">
+        <Accordion>
+            {Object.entries(radioByDriver).map(([driverName, radios]) => (
+                <Accordion.Item eventKey={driverName} key={driverName}>
+                    <Accordion.Header>
+                        <span className="text-uppercase">{driverName}</span>
+                    </Accordion.Header>
+                    <Accordion.Body>
+                        <ul className="list-unstyled d-flex flex-column align-items-center gap-2 mb-0">
                             {radios.map((radio, index) => (
-                                <li key={index}>
-                                    <audio controls src={radio.recording_url} className="w-72 md:w-45 lg:w-72 mt-3" />
+                                <li key={index} className="w-100">
+                                    {/* preload="none": don't download every MP3 until played */}
+                                    <audio controls preload="none" src={radio.recording_url} className="w-100" />
                                 </li>
                             ))}
                         </ul>
-                    )}
-                </div>
+                    </Accordion.Body>
+                </Accordion.Item>
             ))}
-        </div>
+        </Accordion>
     );
-}
-
+};
 
 export default TeamRadio;

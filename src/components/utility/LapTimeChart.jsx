@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DriverSelector from "../chartUtils/DriverSelector";
 import CompareToggle from "../chartUtils/CompareToggle";
-import LineVisibilityToggle from "../chartUtils/LineVisabilityToggle";
+import LineVisibilityToggle from "../chartUtils/LineVisibilityToggle";
 import SessionLapsLineDisplay from "../chartUtils/SessionLapsLineDisplay";
 import FastestLapLineDisplay from "../chartUtils/FastestLapLineDisplay";
 import { useLocation } from "react-router-dom";
@@ -16,7 +16,9 @@ const LapTimeChart = ({ drivers = [], laps = [], initialDriverNumber }) => {
         sector3: false,
     });
     const [compareMode, setCompareMode] = useState(false);
-
+    // Hooks must run before any early return (Rules of Hooks)
+    const location = useLocation();
+    const isQualifying = location.pathname.includes("qualy-results");
 
 
     const lapsWithDriverNames = laps.map((lap) => {
@@ -94,10 +96,6 @@ const LapTimeChart = ({ drivers = [], laps = [], initialDriverNumber }) => {
             [key]: !prev[key],
         }));
     };
-
-    const location = useLocation();
-    const isQualifying = location.pathname.includes("qualy-results");
-
 
     return (
         <div>

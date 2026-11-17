@@ -1,57 +1,47 @@
-import React, {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
+import Accordion from "react-bootstrap/Accordion";
 import { getRaceControl } from "../../api";
 
-const RaceControl = ({sessionKey}) => {
-    const [raceControl, setRaceControl] = useState([])
+const RaceControl = ({ sessionKey }) => {
+    const [raceControl, setRaceControl] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [expandedMessage, setExpandedMessage] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!sessionKey) return;
 
         const fetchRaceControl = async () => {
-            const data = await getRaceControl(sessionKey);
-            setRaceControl(data);
-            setLoading(false);
-        }
+            setLoading(true);
+            setError(null);
+            try {
+                setRaceControl(await getRaceControl(sessionKey));
+            } catch {
+                setError("Could not load race control messages.");
+            } finally {
+                setLoading(false);
+            }
+        };
         fetchRaceControl();
-
     }, [sessionKey]);
 
+    if (loading) return <p>Loading race control messages...</p>;
+    if (error) return <p className="text-danger">{error}</p>;
+    if (!raceControl.length) return <p>No race control messages for this session.</p>;
 
-    if (loading || !raceControl.length) {
-        return <p>Loading Race Control Data... Try Refreshing</p>;
-    }
-
-    return(
-    <div className="accordion" id="raceControlAccordion">
-        {raceControl.map((rc, index) => (
-        <div className="accordion-item" key={index}>
-            <h2 className="accordion-header" id={`heading-${index}`}>
-            <button
-                className="accordion-button collapsed text-uppercase"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target={`#collapse-${index}`}
-                aria-expanded="false"
-                aria-controls={`collapse-${index}`}
-            >
-                {rc.category === "Flag" ? rc.flag : rc.category}
-            </button>
-            </h2>
-        <div
-            id={`collapse-${index}`}
-            className="accordion-collapse collapse"
-            aria-labelledby={`heading-${index}`}
-            data-bs-parent="#raceControlAccordion"
-            >
-            <div className="accordion-body">
-                {rc.message}
-            </div>
-        </div>
-    </div>
-    ))}
-</div>
-)}
+    return (
+        <Accordion>
+            {raceControl.map((rc, index) => (
+                <Accordion.Item eventKey={String(index)} key={index}>
+                    <Accordion.Header>
+                        <span className="text-uppercase">
+                            {rc.category === "Flag" ? rc.flag : rc.category}
+                        </span>
+                    </Accordion.Header>
+                    <Accordion.Body>{rc.message}</Accordion.Body>
+                </Accordion.Item>
+            ))}
+        </Accordion>
+    );
+};
 
 export default RaceControl;
