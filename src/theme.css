@@ -1,3 +1,32 @@
+/* Page headings: one element that scales with screen width
+   (replaces separate mobile/desktop copies of each heading) */
+.home-title {
+  font-size: clamp(2.5rem, 1.5rem + 4vw, 4.5rem);
+  font-weight: 300;
+  line-height: 1.2;
+}
+
+.page-title {
+  font-size: clamp(1.25rem, 0.9rem + 2.5vw, 3rem);
+  font-weight: 300;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.page-subtitle {
+  font-size: clamp(1.1rem, 0.8rem + 1.75vw, 2.5rem);
+  font-weight: 300;
+  line-height: 1.2;
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .page-title,
+  .page-subtitle {
+    text-align: left;
+  }
+}
+
 :root {
   --gradient-start: #ffffff;
   --gradient-end: #929292;

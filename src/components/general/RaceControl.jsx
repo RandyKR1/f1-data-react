@@ -2,6 +2,15 @@ import { useState, useEffect } from "react";
 import Accordion from "react-bootstrap/Accordion";
 import { getRaceControl } from "../../api";
 
+// OpenF1 has no id field for race control messages. Several can share a
+// timestamp, so the key combines timestamp, category and text.
+const messageKey = (rc) => `${rc.date}|${rc.category}|${rc.message}`;
+
+// Drop exact repeats (same time, category and text) so every key is unique
+const uniqueMessages = (messages) => [
+    ...new Map(messages.map((rc) => [messageKey(rc), rc])).values(),
+];
+
 const RaceControl = ({ sessionKey }) => {
     const [raceControl, setRaceControl] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -9,19 +18,14 @@ const RaceControl = ({ sessionKey }) => {
 
     useEffect(() => {
         if (!sessionKey) return;
-
-        const fetchRaceControl = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                setRaceControl(await getRaceControl(sessionKey));
-            } catch {
-                setError("Could not load race control messages.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchRaceControl();
+        let ignore = false;
+        setLoading(true);
+        setError(null);
+        getRaceControl(sessionKey)
+            .then((data) => { if (!ignore) setRaceControl(uniqueMessages(data)); })
+            .catch(() => { if (!ignore) setError("Could not load race control messages."); })
+            .finally(() => { if (!ignore) setLoading(false); });
+        return () => { ignore = true; };
     }, [sessionKey]);
 
     if (loading) return <p>Loading race control messages...</p>;
@@ -30,8 +34,8 @@ const RaceControl = ({ sessionKey }) => {
 
     return (
         <Accordion>
-            {raceControl.map((rc, index) => (
-                <Accordion.Item eventKey={String(index)} key={index}>
+            {raceControl.map((rc) => (
+                <Accordion.Item eventKey={messageKey(rc)} key={messageKey(rc)}>
                     <Accordion.Header>
                         <span className="text-uppercase">
                             {rc.category === "Flag" ? rc.flag : rc.category}

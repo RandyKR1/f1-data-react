@@ -1,51 +1,71 @@
-import React from "react";
 import {
     LineChart, Line, XAxis, YAxis, Tooltip, Legend,
     ResponsiveContainer, CartesianGrid
 } from "recharts";
 import { lapToMinFormat } from "../../utilities";
 
-const SessionLapsLineDisplay = ({ data, visibleLines, compareMode, driver1, driver2 }) => (
-    <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 60, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="7 7" />
-            <XAxis dataKey="lapNumber" label={{ value: "Lap", position: "insideBottomRight", offset: -5 }} />
-            <YAxis label={{ value: "Time", position: "insideLeft" }} tickFormatter={lapToMinFormat} domain={["dataMin - 2", "dataMax + 2"]} />
-            <Tooltip formatter={(value) => lapToMinFormat(value)} />
-            <Legend verticalAlign="bottom" height={60} wrapperStyle={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                lineHeight: '24px',
-            }} />
+const TEAMMATE_DASH = "6 3";
 
-            {visibleLines.lapTime && (
-                <Line type="monotone" dataKey="lapDuration1" stroke="#1b4f72" name={`${driver1} Lap Time`} dot={false} connectNulls />
-            )}
-            {visibleLines.sector1 && (
-                <Line type="monotone" dataKey="sector1_1" stroke="#2874a6" name={`${driver1} Sector 1`} dot={false} connectNulls />
-            )}
-            {visibleLines.sector2 && (
-                <Line type="monotone" dataKey="sector2_1" stroke="#3498db" name={`${driver1} Sector 2`} dot={false} connectNulls />
-            )}
-            {visibleLines.sector3 && (
-                <Line type="monotone" dataKey="sector3_1" stroke="#5499c7" name={`${driver1} Sector 3`} dot={false} connectNulls />
-            )}
+// One entry per toggle in LineVisibilityToggle. Sectors get their own dash
+// pattern so they can be told apart when several metrics are shown.
+const METRICS = [
+    { key: "lapTime", label: "Lap", width: 2 },
+    { key: "sector1", label: "S1", width: 1.5, dash: "2 2" },
+    { key: "sector2", label: "S2", width: 1.5, dash: "8 3" },
+    { key: "sector3", label: "S3", width: 1.5, dash: "12 3 2 3" },
+];
 
-            {compareMode && visibleLines.lapTime && (
-                <Line type="monotone" dataKey="lapDuration2" stroke="#e10600" fill="#1e8449" name={`${driver2} Lap Time`} dot={false} connectNulls />
-            )}
-            {compareMode && visibleLines.sector1 && (
-                <Line type="monotone" dataKey="sector1_2" stroke="#f44336" name={`${driver2} Sector 1`} dot={false} connectNulls />
-            )}
-            {compareMode && visibleLines.sector2 && (
-                <Line type="monotone" dataKey="sector2_2" stroke="#ef5350" name={`${driver2} Sector 2`} dot={false} connectNulls />
-            )}
-            {compareMode && visibleLines.sector3 && (
-                <Line type="monotone" dataKey="sector3_2" stroke="#ec7063" name={`${driver2} Sector 3`} dot={false} connectNulls />
-            )}
-        </LineChart>
-    </ResponsiveContainer>
-);
+/**
+ * Lap-by-lap times for any number of drivers.
+ * @param data - rows of { lapNumber, `${driverNumber}_${metricKey}`: seconds }
+ * @param selected - driver numbers to draw
+ * @param styles - Map of driver_number -> { name, color, secondary }
+ * @param visibleLines - { lapTime, sector1, sector2, sector3 } booleans
+ */
+const SessionLapsLineDisplay = ({ data, selected, styles, visibleLines }) => {
+    const metrics = METRICS.filter((m) => visibleLines[m.key]);
+    const singleMetric = metrics.length === 1;
+
+    return (
+        <ResponsiveContainer width="100%" height={450}>
+            <LineChart data={data} margin={{ top: 20, right: 30, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="7 7" />
+                <XAxis dataKey="lapNumber" label={{ value: "Lap", position: "insideBottomRight", offset: -5 }} />
+                <YAxis tickFormatter={lapToMinFormat} domain={["dataMin - 2", "dataMax + 2"]} />
+                {/* Sort tooltip rows fastest first */}
+                <Tooltip formatter={(value) => lapToMinFormat(value)} itemSorter={(item) => item.value} />
+                <Legend verticalAlign="bottom" />
+
+                {selected.flatMap((num) => {
+                    const style = styles.get(num);
+                    if (!style) return [];
+                    return metrics.map((metric) => {
+                        // Teammates share a team colour: with one metric the second
+                        // teammate is dashed; with several, dashes mark the metric
+                        // and the second teammate is drawn lighter instead.
+                        const dash = singleMetric || !metric.dash
+                            ? (style.secondary ? TEAMMATE_DASH : undefined)
+                            : metric.dash;
+                        return (
+                            <Line
+                                key={`${num}_${metric.key}`}
+                                type="monotone"
+                                dataKey={`${num}_${metric.key}`}
+                                name={`${style.name} ${metric.label}`}
+                                stroke={style.color}
+                                strokeWidth={metric.width}
+                                strokeDasharray={dash}
+                                strokeOpacity={style.secondary && !singleMetric ? 0.6 : 1}
+                                dot={false}
+                                connectNulls
+                                isAnimationActive={false}
+                            />
+                        );
+                    });
+                })}
+            </LineChart>
+        </ResponsiveContainer>
+    );
+};
 
 export default SessionLapsLineDisplay;

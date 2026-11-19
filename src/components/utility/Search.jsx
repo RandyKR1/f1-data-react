@@ -1,87 +1,75 @@
-import { useEffect, useState } from "react";
-import { getSessions, getMeetings } from "../../api";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
+import { getMeetings, getSessionsFor } from "../../api";
+import { SESSION_ROUTES } from "../../utilities";
 import DropdownSelector from "./DropdownSelector";
 
 const Search = () => {
   const [meetings, setMeetings] = useState([]);
-  const [years, setYears] = useState([]);
   const [sessions, setSessions] = useState([]);
 
   const [selectedTrack, setSelectedTrack] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedSessionKey, setSelectedSessionKey] = useState("");
-  const [selectedSessionObj, setSelectedSessionObj] = useState(null);
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
+  // Meeting list is cached in api.js, so this only hits the network once per page load
   useEffect(() => {
-    const fetchMeeting = async () => {
-      try {
-        setMeetings(await getMeetings());
-      } catch {
-        setError("Could not load tracks. Please refresh to try again.");
-      }
-    };
-    fetchMeeting();
+    let ignore = false;
+    getMeetings()
+      .then((data) => { if (!ignore) setMeetings(data); })
+      .catch(() => { if (!ignore) setError("Could not load tracks. Please refresh to try again."); });
+    return () => { ignore = true; };
   }, []);
 
+  // Ask the API for just this track + year instead of downloading every session
   useEffect(() => {
-    if (!selectedTrack) return;
-
-    const filteredYears = Array.from(
-      new Set(
-        meetings
-          .filter((meet) => meet.location === selectedTrack)
-          .map((meet) => new Date(meet.date_start).getFullYear())
-      )
-    );
-    setYears(filteredYears);
-  }, [selectedTrack, meetings]);
-
-  useEffect(() => {
-    const fetchSessions = async () => {
-      if (!selectedTrack || !selectedYear) return;
-      let data;
-      try {
-        data = await getSessions();
-      } catch {
-        setError("Could not load sessions. Please try again.");
-        return;
-      }
-      const filtered = data.filter(
-        (sess) =>
-          sess.location === selectedTrack &&
-          new Date(sess.date_start).getFullYear() === parseInt(selectedYear)
-      );
-      setSessions(filtered);
-    };
-    fetchSessions();
+    if (!selectedTrack || !selectedYear) return;
+    let ignore = false;
+    getSessionsFor(selectedTrack, selectedYear)
+      .then((data) => { if (!ignore) setSessions(data); })
+      .catch(() => { if (!ignore) setError("Could not load sessions. Please try again."); });
+    return () => { ignore = true; };
   }, [selectedTrack, selectedYear]);
 
-  const handleSessionChange = (sessionKey) => {
-    setSelectedSessionKey(sessionKey);
-    const selected = sessions.find(
-      (s) => s.session_key.toString() === sessionKey
-    );
-    setSelectedSessionObj(selected);
+  const tracks = useMemo(
+    () => [...new Set(meetings.map((meet) => meet.location))],
+    [meetings]
+  );
+
+  const years = useMemo(
+    () => [
+      ...new Set(
+        meetings
+          .filter((meet) => meet.location === selectedTrack)
+          .map((meet) => meet.year ?? new Date(meet.date_start).getFullYear())
+      ),
+    ],
+    [meetings, selectedTrack]
+  );
+
+  const selectedSession = sessions.find((s) => s.session_key.toString() === selectedSessionKey);
+  // undefined for session types without a results page (button is disabled)
+  const route = selectedSession && SESSION_ROUTES[selectedSession.session_type];
+
+  // Changing an earlier choice clears the later ones
+  const handleTrackSelect = (track) => {
+    setSelectedTrack(track);
+    setSelectedYear("");
+    setSelectedSessionKey("");
+    setSessions([]);
+    setError(null);
   };
 
-  const handleSessionNav = () => {
-    const { session_type, session_key } = selectedSessionObj;
-    let path = "";
-
-    if (session_type === "Race") path = `/race-results/${session_key}`;
-    else if (session_type === "Qualifying") path = `/qualy-results/${session_key}`;
-    else if (session_type === "Practice") path = `/practice-results/${session_key}`;
-    else path = `/results/${session_key}`;
-
-    navigate(path);
+  const handleYearSelect = (year) => {
+    setSelectedYear(year);
+    setSelectedSessionKey("");
+    setSessions([]);
+    setError(null);
   };
-
-  const uniqueTracks = [...new Set(meetings.map((meet) => meet.location))];
 
   return (
     <motion.div
@@ -94,9 +82,9 @@ const Search = () => {
           {error && <div className="alert alert-danger mb-0">{error}</div>}
           <DropdownSelector
             title="Select a Track"
-            options={uniqueTracks}
+            options={tracks}
             selected={selectedTrack}
-            onSelect={setSelectedTrack}
+            onSelect={handleTrackSelect}
           />
           {selectedTrack && (
             <DropdownSelector
@@ -106,7 +94,7 @@ const Search = () => {
                 value: year.toString()
               }))}
               selected={selectedYear}
-              onSelect={setSelectedYear}
+              onSelect={handleYearSelect}
             />
           )}
 
@@ -117,16 +105,18 @@ const Search = () => {
                 label: `${new Date(s.date_start).toLocaleDateString()} - ${s.session_name}`,
                 value: s.session_key.toString()
               }))}
-              selected={
-                sessions.find((s) => s.session_key.toString() === selectedSessionKey)?.session_name
-              }
-              onSelect={handleSessionChange}
+              selected={selectedSession?.session_name}
+              onSelect={setSelectedSessionKey}
             />
           )}
-          {selectedSessionKey && (
+          {selectedSession && (
             <div className="d-grid">
-              <button onClick={handleSessionNav} className="btn btn-primary">
-                View Race Data
+              <button
+                onClick={() => navigate(`/${route}/${selectedSession.session_key}`)}
+                className="btn btn-primary"
+                disabled={!route}
+              >
+                {route ? "View Race Data" : "Results not available for this session"}
               </button>
             </div>
           )}

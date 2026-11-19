@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-    getLaps,
-    getStints,
-    getDrivers,
-    getSessions,
-    getMeetings,
-    getPosition,
-} from "../../api";
-import { getDriverFinalPosition, getMinBy, lapToMinFormat } from "../../utilities";
+import { loadSessionData, getErrorMessage } from "../../api";
+import { SESSION_ROUTES, getMinBy, lapToMinFormat, formatPosition } from "../../utilities";
 import LongestStintByCompound from "../utility/LongestStintByCompound";
 import DriverTeamRadio from "../general/DriverTeamRadio";
 import LapTimeChart from "../utility/LapTimeChart";
@@ -16,101 +9,49 @@ import ErrorMessage from "../utility/ErrorMessage";
 
 const DriverRaceResults = () => {
     const { sessionKey, driver_number } = useParams();
-    const [drivers, setDrivers] = useState([]);
-    const [laps, setLaps] = useState([]);
-    const [stints, setStints] = useState([]);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [sessionInfo, setSessionInfo] = useState(null);
-    const [meetingInfo, setMeetingInfo] = useState(null);
-    const [positionInfo, setPositionInfo] = useState(null);
-
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const [
-                    lapData,
-                    stintData,
-                    driverData,
-                    positionData,
-                    sessionData,
-                    meetingData,
-                ] = await Promise.all([
-                    getLaps(sessionKey),
-                    getStints(sessionKey),
-                    getDrivers(sessionKey),
-                    getPosition(sessionKey),
-                    getSessions(),
-                    getMeetings(),
-                ]);
-
-                const foundSession = sessionData.find(
-                    (s) => s.session_key.toString() === sessionKey
-                );
-                if (!foundSession) throw new Error("Session not found.");
-                const foundMeeting = meetingData.find(
-                    (m) => m.meeting_key === foundSession.meeting_key
-                );
-
-                setLaps(lapData);
-                setStints(stintData);
-                setDrivers(driverData);
-                setPositionInfo(positionData);
-                setSessionInfo(foundSession);
-                setMeetingInfo(foundMeeting);
-            } catch (err) {
-                setError(err.isAxiosError
-                    ? "Could not load session data from OpenF1. Please try again in a moment."
-                    : err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        // Ignore responses from an older sessionKey that arrive after we've moved on
+        let ignore = false;
+        setLoading(true);
+        setError(null);
+        loadSessionData(sessionKey, { includeStints: true })
+            .then((result) => { if (!ignore) setData(result); })
+            .catch((err) => { if (!ignore) setError(getErrorMessage(err)); })
+            .finally(() => { if (!ignore) setLoading(false); });
+        return () => { ignore = true; };
     }, [sessionKey]);
 
-    if (loading) return <div className="text-center mt-5">Loading Results...</div>;
+    if (loading || (!data && !error)) return <div className="text-center mt-5">Loading Results...</div>;
     if (error) return <ErrorMessage message={error} />;
 
-    const driver = drivers.find(
-        (d) => d.driver_number.toString() === driver_number
-    );
+    const { session, meeting, drivers, laps, stints, results } = data;
+    const driverNumber = Number(driver_number);
+    const driver = drivers.find((d) => d.driver_number === driverNumber);
     if (!driver) return <ErrorMessage message="Driver not found in this session." />;
 
-    const driverLaps = laps.filter(
-        (lap) => lap.driver_number.toString() === driver_number
-    );
-
-    const driverStints = stints.filter(
-        (stint) => stint.driver_number.toString() === driver_number
-    );
-
+    const result = results.find((r) => r.driver_number === driverNumber);
+    const driverStints = stints.filter((stint) => stint.driver_number === driverNumber);
+    // A race's session_result duration is total race time, so the fastest lap comes from lap data
     const bestLap = getMinBy(
-        driverLaps.filter((lap) => lap.lap_duration != null),
+        laps.filter((lap) => lap.driver_number === driverNumber && lap.lap_duration != null),
         "lap_duration"
     );
-
-    const formattedBestLap = bestLap ? lapToMinFormat(bestLap.lap_duration) : "N/A";
-
     const fullName = `${driver.first_name} ${driver.last_name}`;
-    const headShot = driver.headshot_url;
-    const driverNumber = driver.driver_number;
-    const finalPosition = getDriverFinalPosition(driverNumber, positionInfo);
 
     return (
         <div className="container py-4">
-            <Link to={`/race-results/${sessionKey}`} className="btn btn-outline-secondary mb-3">
+            <Link to={`/${SESSION_ROUTES.Race}/${sessionKey}`} className="btn btn-outline-secondary mb-3">
                 ← Back to Results
             </Link>
 
             <div className="row align-items-center my-5">
                 <div className="col-md-3 text-center">
                     <img
-                        src={headShot}
+                        src={driver.headshot_url}
                         alt={`${fullName} Headshot`}
                         className="img-fluid rounded mb-2"
                         style={{ maxWidth: "120px" }}
@@ -121,9 +62,9 @@ const DriverRaceResults = () => {
                 </div>
 
                 <div className="col-md-9 text-center">
-                    <h3 className="fw-bold">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h3>
+                    <h3 className="fw-bold">{meeting?.meeting_official_name ?? "Grand Prix"}</h3>
                     <h4 className="text-secondary">
-                        {sessionInfo?.session_name} Driver Results
+                        {session.session_name} Driver Results
                     </h4>
                 </div>
             </div>
@@ -133,7 +74,7 @@ const DriverRaceResults = () => {
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Finishing Position</p>
-                            <h5 className="mb-0">{finalPosition ? `P${finalPosition}` : "N/A"}</h5>
+                            <h5 className="mb-0">{formatPosition(result)}</h5>
                         </div>
                     </div>
                 </div>
@@ -141,37 +82,30 @@ const DriverRaceResults = () => {
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Fastest Lap</p>
-                            <h5 className="mb-0">{formattedBestLap}</h5>
+                            <h5 className="mb-0">{bestLap ? lapToMinFormat(bestLap.lap_duration) : "N/A"}</h5>
                         </div>
                     </div>
                 </div>
             </div>
-
 
             <div className="row">
                 <div className="col-md-10 mb-5 text-center offset-md-1">
                     <h5 className="fw-bold mb-3">Team Radio</h5>
                     <DriverTeamRadio
                         sessionKey={sessionKey}
-                        driverNumber={driver_number}
+                        driverNumber={driverNumber}
+                        drivers={drivers}
                     />
                 </div>
 
                 <div className="col-md-10 mb-4 text-center offset-md-1">
                     <h5 className="fw-bold mb-3">Stint Information</h5>
-                    <LongestStintByCompound
-                        stints={driverStints}
-                        drivers={drivers}
-                        driverNumber={driver.driver_number}
-                    />
+                    <LongestStintByCompound stints={driverStints} drivers={drivers} />
                 </div>
             </div>
 
             <div className="col-md-12 mb-5">
-                <LapTimeChart
-                    sessionKey={sessionKey}
-                    drivers={drivers} laps={laps}
-                    initialDriverNumber={driver_number} />
+                <LapTimeChart drivers={drivers} laps={laps} initialDrivers={[driverNumber]} />
             </div>
         </div>
     );

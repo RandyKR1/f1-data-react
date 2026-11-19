@@ -1,10 +1,10 @@
-import React from "react";
+import { buildDriverMap, getDriverName as getNameFromMap } from "../../utilities";
 
-const LongestStintByCompound =({ stints, drivers }) => {
+const LongestStintByCompound = ({ stints, drivers }) => {
     if (!stints?.length || !drivers?.length) return null;
 
-    const getDriverName = (driver_number) =>
-        drivers.find((d) => d.driver_number === driver_number)?.last_name || "Unknown";
+    const driverMap = buildDriverMap(drivers);
+    const getDriverName = (driver_number) => getNameFromMap(driverMap, driver_number);
 
     const getLongestStintByCompound = () => {
         const result = {};

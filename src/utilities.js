@@ -1,18 +1,23 @@
 /** File for storing re-usable functions throughout the app */
 
-// Function for filtering duplicates from a data set
-export const filterDupes = (array, key) => {
-  const seen = new Set();
-  const result = array.filter((arr) => {
-    if (arr[key] && !seen.has(arr[key])) {
-      seen.add(arr[key]);
-      return true;
-    }
-    return false;
-  });
-
-  return result;
+// URL prefix for each OpenF1 session_type that has a results page
+export const SESSION_ROUTES = {
+  Practice: "practice-results",
+  Qualifying: "qualy-results",
+  Race: "race-results",
 };
+
+export const FALLBACK_RESULTS_MESSAGE =
+  "Official results aren't published for this session yet. The order below is based on live position data and may not include penalties.";
+
+/* ---------- Generic data helpers ---------- */
+
+// Group an array of objects into { [item[key]]: item[] }
+export const groupBy = (array, key) =>
+  array.reduce((acc, item) => {
+    (acc[item[key]] ??= []).push(item);
+    return acc;
+  }, {});
 
 // Function to get the object with the highest value for a given key
 export const getMaxBy = (data, key) => {
@@ -35,12 +40,14 @@ export const getAverageBy = (data, key) => {
   return (total / data.length).toFixed(0);
 };
 
-// Function to convert speed from KPH to MPH
-export const toMPH = (kph) => {
-  return (kph * 0.621371).toFixed(1);
-};
+/* ---------- Unit conversions ---------- */
 
-// Function to convert temperature from Celsius to Fahrenheit
+// OpenF1 wind_speed is in metres per second.
+// 1 m/s = 3.6 km/h exactly; 1 mph is defined as exactly 0.44704 m/s.
+export const msToKph = (ms) => (ms * 3.6).toFixed(1);
+export const msToMph = (ms) => (ms / 0.44704).toFixed(1);
+
+// Function to convert temperature from Celsius to Fahrenheit (exact)
 export const toFahrenheit = (celsius) => {
   return ((celsius * 9) / 5 + 32).toFixed(1);
 };
@@ -63,64 +70,139 @@ export const rainfall = (data, key) => {
   return data.some(item => item[key] === 1) ? "Yes" : "No";
 };
 
-export const lapToMinFormat = (duration) => {
-  const minutes = Math.floor(duration / 60);
-  const seconds = Math.floor(duration % 60);
-  const milliseconds = Math.round((duration % 1) * 1000);
+/* ---------- Time formatting ---------- */
+// All formatters convert to whole milliseconds first, then use integer math.
+// OpenF1 times are given to the millisecond, so this reproduces them exactly
+// and avoids floating-point slips like 59.99999 -> "0:59.1000".
 
-  return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+const pad = (n, length = 2) => String(n).padStart(length, "0");
+
+// 91.743 -> "1:31.743"
+export const lapToMinFormat = (seconds) => {
+  if (seconds == null || Number.isNaN(seconds)) return "–";
+  const totalMs = Math.round(seconds * 1000);
+  const minutes = Math.floor(totalMs / 60000);
+  const secs = Math.floor(totalMs / 1000) % 60;
+  return `${minutes}:${pad(secs)}.${pad(totalMs % 1000, 3)}`;
 };
 
-
-export const formatRaceTime = (durationInSeconds) => {
-  const hours = Math.floor(durationInSeconds / 3600);
-  const minutes = Math.floor((durationInSeconds % 3600) / 60);
-  const seconds = Math.floor(durationInSeconds % 60);
-  const milliseconds = Math.round((durationInSeconds % 1) * 1000);
-
-  return `${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds
-    .toString()
-    .padStart(2, '0')}s ${milliseconds.toString().padStart(3, '0')}ms`;
+// 5504.742 -> "1:31:44.742"
+export const formatRaceTime = (seconds) => {
+  if (seconds == null || Number.isNaN(seconds)) return "–";
+  const totalMs = Math.round(seconds * 1000);
+  const hours = Math.floor(totalMs / 3600000);
+  const minutes = Math.floor(totalMs / 60000) % 60;
+  const secs = Math.floor(totalMs / 1000) % 60;
+  return `${hours}:${pad(minutes)}:${pad(secs)}.${pad(totalMs % 1000, 3)}`;
 };
 
-
-export const mapDriverNames = (data, drivers) => {
-  return data.map((item) => {
-    const driver = drivers.find((d) => d.driver_number === item.driver_number);
-    return {
-      ...item,
-      driver_name: driver?.last_name || "Unknown Driver Name",
-    };
-  });
+// 22.457 -> "+22.457s", "+1 LAP" stays as-is, 0 / null -> "–"
+export const formatGap = (gap) => {
+  if (gap == null || gap === 0) return "–";
+  if (typeof gap === "string") return gap;
+  return `+${gap.toFixed(3)}s`;
 };
 
+/* ---------- Drivers ---------- */
+// Driver numbers are only guaranteed unique within a session, so always build
+// this map from the same session's /drivers response.
 
-export const groupByDriverName = (dataWithNames) => {
-  return dataWithNames.reduce((acc, item) => {
-    const name = item.driver_name;
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(item);
-    return acc;
-  }, {});
+export const buildDriverMap = (drivers) =>
+  new Map(drivers.map((d) => [d.driver_number, d]));
+
+// Last name for display; falls back to "#44" so every driver still shows something distinct
+export const getDriverName = (driverMap, driverNumber) =>
+  driverMap.get(Number(driverNumber))?.last_name ?? `#${driverNumber}`;
+
+export const getTeamColor = (driver) =>
+  driver?.team_colour ? `#${driver.team_colour}` : "#6c757d";
+
+// Black or white text, whichever is readable on the given background colour
+export const getReadableTextColor = (hex) => {
+  const value = parseInt(hex.replace("#", ""), 16);
+  const r = (value >> 16) & 255, g = (value >> 8) & 255, b = value & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#000" : "#fff";
 };
 
-export const sortRaceResults = (drivers) => {
-  return drivers.sort((a, b) => {
-    // First, compare by lap count (descending)
-    if (b.lapCount !== a.lapCount) {
-      return b.lapCount - a.lapCount;
-    }
+/* ---------- Laps & results ---------- */
 
-    // If lap count is the same, compare by race time (ascending)
-    return a.raceLength - b.raceLength;
-  });
+export const isCompleteLap = (lap) =>
+  lap.lap_duration != null &&
+  lap.duration_sector_1 != null &&
+  lap.duration_sector_2 != null &&
+  lap.duration_sector_3 != null;
+
+// Map of driver_number -> fastest lap that has all three sector times
+export const getBestLapsByDriver = (laps) => {
+  const best = new Map();
+  for (const lap of laps) {
+    if (!isCompleteLap(lap)) continue;
+    const current = best.get(lap.driver_number);
+    if (!current || lap.lap_duration < current.lap_duration) best.set(lap.driver_number, lap);
+  }
+  return best;
 };
 
-export const getDriverFinalPosition = (driverNumber, positionInfo) => {
-  const driverPositions = positionInfo.filter(
-    (p) => p.driver_number.toString() === driverNumber.toString()
+// Unclassified drivers (no position) go last; ties broken by laps completed
+export const sortByPosition = (results) =>
+  [...results].sort(
+    (a, b) =>
+      (a.position ?? Infinity) - (b.position ?? Infinity) ||
+      (b.number_of_laps ?? 0) - (a.number_of_laps ?? 0)
   );
 
-  const finalEntry = driverPositions[driverPositions.length - 1];
-  return finalEntry?.position ?? null;
+// Driver numbers of the top n finishers
+export const getTopDrivers = (results, n = 2) =>
+  sortByPosition(results).slice(0, n).map((r) => r.driver_number);
+
+// "DSQ" / "DNS" / "DNF", or null if the driver was classified normally
+export const getResultStatus = (result) => {
+  if (result?.dsq) return "DSQ";
+  if (result?.dns) return "DNS";
+  if (result?.dnf) return "DNF";
+  return null;
+};
+
+// "P3", "P18 (DNF)", "DSQ", or "N/A"
+export const formatPosition = (result) => {
+  if (!result) return "N/A";
+  const status = getResultStatus(result);
+  if (result.position == null) return status ?? "N/A";
+  return status ? `P${result.position} (${status})` : `P${result.position}`;
+};
+
+// Official best lap from session_result: a number for practice,
+// [Q1, Q2, Q3] for qualifying (take the fastest), total time for races (not a lap)
+export const getOfficialBestLap = (result, sessionType) => {
+  if (!result || sessionType === "Race") return null;
+  if (Array.isArray(result.duration)) {
+    const times = result.duration.filter((t) => t != null);
+    return times.length ? Math.min(...times) : null;
+  }
+  return result.duration ?? null;
+};
+
+// Used only when session_result is empty (results not published yet).
+// Builds rows in the same shape as session_result from live position data.
+export const buildFallbackResults = (positions, laps, isRace) => {
+  const latestPosition = new Map();
+  const byDate = [...positions].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  for (const p of byDate) latestPosition.set(p.driver_number, p.position);
+
+  const lapsByDriver = groupBy(laps, "driver_number");
+  return [...latestPosition].map(([driverNumber, position]) => {
+    const driverLaps = lapsByDriver[driverNumber] ?? [];
+    const best = getMinBy(driverLaps.filter((l) => l.lap_duration != null), "lap_duration");
+    return {
+      driver_number: driverNumber,
+      position,
+      number_of_laps: driverLaps.length,
+      duration: isRace ? null : best?.lap_duration ?? null,
+      gap_to_leader: null,
+      dnf: false,
+      dns: false,
+      dsq: false,
+      points: null,
+    };
+  });
 };

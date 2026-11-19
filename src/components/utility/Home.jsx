@@ -12,16 +12,7 @@ const Home = () => {
             px-3 py-4"
         >
             <motion.h1
-                className="display-3 d-none d-md-block"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 3 }}
-            >
-                Welcome!
-            </motion.h1>
-
-            <motion.h1
-                className="display-4 d-block d-md-none"
+                className="home-title"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 3 }}

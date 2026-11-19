@@ -1,90 +1,48 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { motion } from "motion/react";
+import { loadSessionData, getErrorMessage } from "../../api";
+import { FALLBACK_RESULTS_MESSAGE, getTopDrivers } from "../../utilities";
 import Search from "../utility/Search";
-import FinalClassificationTable from "../utility/FinalClassificationTable";
+import ClassificationTable from "../utility/ClassificationTable";
 import LapTimeChart from "../utility/LapTimeChart";
 import Weather from "../general/Weather";
 import RaceControl from "../general/RaceControl";
-import { motion } from "motion/react";
-import {
-    getLaps,
-    getStints,
-    getDrivers,
-    getSessions,
-    getMeetings,
-    getPosition,
-} from "../../api";
 import TeamRadio from "../general/TeamRadio";
 import DismissibleAlert from "../utility/DismissibleAlert";
 import ErrorMessage from "../utility/ErrorMessage";
 
-
 const QualifyingResults = () => {
     const { sessionKey } = useParams();
-    const [drivers, setDrivers] = useState([]);
-    const [laps, setLaps] = useState([])
-    const [stints, setStints] = useState([]);
+    const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [sessionInfo, setSessionInfo] = useState(null);
-    const [meetingInfo, setMeetingInfo] = useState(null)
-    const [positionInfo, setPositionInfo] = useState(null)
     const [showScrollTop, setShowScrollTop] = useState(false);
 
-
     useEffect(() => {
-        const handleScroll = () => {
-            if (window.scrollY > 750) {
-                setShowScrollTop(true);
-            } else {
-                setShowScrollTop(false);
-            }
-        };
-
+        const handleScroll = () => setShowScrollTop(window.scrollY > 750);
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
-
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const [lapData, stintData, driverData, positionData, sessionData, meetingData] = await Promise.all([
-                    getLaps(sessionKey),
-                    getStints(sessionKey),
-                    getDrivers(sessionKey),
-                    getPosition(sessionKey),
-                    getSessions(),
-                    getMeetings()
-                ]);
-                const foundSession = sessionData.find((s) => s.session_key.toString() === sessionKey);
-                if (!foundSession) throw new Error("Session not found.");
-                const foundMeeting = meetingData.find((m) => m.meeting_key === foundSession.meeting_key);
-
-                setLaps(lapData);
-                setStints(stintData);
-                setDrivers(driverData);
-                setPositionInfo(positionData);
-                setSessionInfo(foundSession);
-                setMeetingInfo(foundMeeting);
-            } catch (err) {
-                setError(err.isAxiosError
-                    ? "Could not load session data from OpenF1. Please try again in a moment."
-                    : err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        // Ignore responses from an older sessionKey that arrive after we've moved on
+        let ignore = false;
+        setLoading(true);
+        setError(null);
+        loadSessionData(sessionKey)
+            .then((result) => { if (!ignore) setData(result); })
+            .catch((err) => { if (!ignore) setError(getErrorMessage(err)); })
+            .finally(() => { if (!ignore) setLoading(false); });
+        return () => { ignore = true; };
     }, [sessionKey]);
 
-    if (loading) {
+    if (loading || (!data && !error)) {
         return <div className="text-center mt-5">Loading Qualifying Results...</div>;
     }
     if (error) return <ErrorMessage message={error} />;
+
+    const { session, meeting, drivers, laps, results, isOfficial } = data;
     if (!laps.length || !drivers.length) {
         return <ErrorMessage message="No lap data is available for this session yet." />;
     }
@@ -95,22 +53,14 @@ const QualifyingResults = () => {
 
     return (
         <div className="container">
-            <DismissibleAlert
-                message={"Lap Times May Be Inaccurate, Order Is Based On Final Position Data Provided By The API"}
-            />
+            {!isOfficial && <DismissibleAlert message={FALLBACK_RESULTS_MESSAGE} />}
             <motion.div
-                className="row mt-5 mb-4 p-0 d-flex flex-column text-start"
+                className="mt-5 mb-4"
                 initial={{ x: 10, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 2 }}>
-
-                <h3 className="display-5 d-none d-md-block">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h3>
-                <h3 className="display-6 d-none d-md-block">{sessionInfo?.session_name} Results</h3>
-
-                {/* Mobile Styling */}
-                <h4 className="d-block d-md-none text-center">{meetingInfo?.meeting_official_name ?? "Grand Prix"}</h4>
-                <h5 className="d-block d-md-none text-center">{sessionInfo?.session_name} Results</h5>
-
+                <h1 className="page-title">{meeting?.meeting_official_name ?? "Grand Prix"}</h1>
+                <h2 className="page-subtitle">{session.session_name} Results</h2>
             </motion.div>
 
             <div className="row">
@@ -121,12 +71,14 @@ const QualifyingResults = () => {
                     transition={{ duration: 1 }}
                 >
                     <div className="table-responsive">
-                        <FinalClassificationTable
+                        <ClassificationTable
+                            type="Qualifying"
+                            results={results}
+                            isOfficial={isOfficial}
                             laps={laps}
                             drivers={drivers}
                             sessionKey={sessionKey}
-                            sessionName={sessionInfo?.session_name}
-                            positionInfo={positionInfo}
+                            sessionName={session.session_name}
                         />
                     </div>
                 </motion.div>
@@ -139,7 +91,7 @@ const QualifyingResults = () => {
                     whileInView={{ opacity: 1 }}
                     transition={{ duration: 1 }}
                 >
-                    <LapTimeChart sessionKey={sessionKey} drivers={drivers} laps={laps} />
+                    <LapTimeChart drivers={drivers} laps={laps} initialDrivers={getTopDrivers(results)} />
                 </motion.div>
             </div>
 
@@ -162,14 +114,13 @@ const QualifyingResults = () => {
                     <div className="col-md-6 text-center mb-4">
                         <p className="fs-3">Team Radio Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
-                            <TeamRadio sessionKey={sessionKey} />
+                            <TeamRadio sessionKey={sessionKey} drivers={drivers} />
                         </div>
                     </div>
                     <div className="col-md-6 text-center mb-4">
                         <p className="fs-3">Race Control Messages</p>
                         <div style={{ maxHeight: "265px", overflowY: "auto", scrollbarWidth: "thin" }}>
                             <RaceControl sessionKey={sessionKey} />
-
                         </div>
                     </div>
                 </motion.div>
@@ -194,10 +145,8 @@ const QualifyingResults = () => {
                     ↑
                 </motion.button>
             )}
-
         </div>
     )
-
 }
 
 export default QualifyingResults

@@ -1,6 +1,6 @@
 import Dropdown from 'react-bootstrap/Dropdown';
 
-const DropdownSelector = ({ title, options, selected, onSelect, className="" }) => (
+const DropdownSelector = ({ title, options, selected, onSelect }) => (
     <Dropdown>
     <Dropdown.Toggle 
       variant="light" 

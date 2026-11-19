@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { getWeather } from "../../api";
-import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, toMPH, getWindDirection, rainfall } from "../../utilities";
+import { getMaxBy, getMinBy, getAverageBy, toFahrenheit, msToKph, msToMph, getWindDirection, rainfall } from "../../utilities";
 
 const Weather = ({ sessionKey }) => {
     const [weather, setWeather] = useState([])
@@ -9,19 +9,14 @@ const Weather = ({ sessionKey }) => {
 
     useEffect(() => {
         if (!sessionKey) return;
-
-        const fetchWeather = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                setWeather(await getWeather(sessionKey));
-            } catch {
-                setError("Could not load weather data.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchWeather();
+        let ignore = false;
+        setLoading(true);
+        setError(null);
+        getWeather(sessionKey)
+            .then((data) => { if (!ignore) setWeather(data); })
+            .catch(() => { if (!ignore) setError("Could not load weather data."); })
+            .finally(() => { if (!ignore) setLoading(false); });
+        return () => { ignore = true; };
     }, [sessionKey]);
 
     if (loading) return <p className="text-center">Loading weather data...</p>;
@@ -38,20 +33,15 @@ const Weather = ({ sessionKey }) => {
     const minTrackTempFar = toFahrenheit(minTrackTempCel.track_temperature)
     const maxTrackTempFar = toFahrenheit(maxTrackTempCel.track_temperature)
 
-    const maxWindSpeed = getMaxBy(weather, "wind_speed")
-    const maxWindSpeedMPH = toMPH(maxWindSpeed.wind_speed);
-    const windDirection = getWindDirection(maxWindSpeed.wind_direction)
+    // Strongest one-minute wind sample of the session (OpenF1 reports m/s)
+    const maxWind = getMaxBy(weather, "wind_speed")
+    const maxWindKph = msToKph(maxWind.wind_speed);
+    const maxWindMph = msToMph(maxWind.wind_speed);
+    const windDirection = getWindDirection(maxWind.wind_direction)
 
     const humidity = getAverageBy(weather, "humidity");
 
     const rain = rainfall(weather, "rainfall")
-
-    // console.log("Max Air Temp Celcius:", maxAirTempCel.air_temperature)
-    // console.log("Max Air Temp Farenheit:", maxAirTempFar)
-    // console.log("Max Track Temp:", maxTrackTempCel.air_temperature)
-    // console.log("Max Wind Speed:", maxWindSpeedMPH)
-    // console.log("Rainfall:", rain)
-
 
     return (
         <div className="container mb-5 ">
@@ -75,9 +65,9 @@ const Weather = ({ sessionKey }) => {
 
                 <div className="col-md-3 col-12 text-center mb-2">
                     <div className="card p-3 h-100 justify-content-center">
-                        <p className="fs-4">Wind</p>
+                        <p className="fs-4">Max Wind</p>
                         <p className="fs-5">Direction: {windDirection}</p>
-                        <p className="fs-5 mb-1">Speed: {maxWindSpeed?.wind_speed} KPH / {maxWindSpeedMPH} MPH</p>
+                        <p className="fs-5 mb-1">Speed: {maxWindKph} km/h / {maxWindMph} mph</p>
                     </div>
                 </div>
 

@@ -1,162 +1,146 @@
-import React, { useState, useEffect } from "react";
-import DriverSelector from "../chartUtils/DriverSelector";
-import CompareToggle from "../chartUtils/CompareToggle";
+import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import DriverPicker from "../chartUtils/DriverPicker";
 import LineVisibilityToggle from "../chartUtils/LineVisibilityToggle";
 import SessionLapsLineDisplay from "../chartUtils/SessionLapsLineDisplay";
 import FastestLapLineDisplay from "../chartUtils/FastestLapLineDisplay";
-import { useLocation } from "react-router-dom";
+import { getTeamColor, getBestLapsByDriver } from "../../utilities";
 
-const LapTimeChart = ({ drivers = [], laps = [], initialDriverNumber }) => {
-    const [selectedDriver1, setSelectedDriver1] = useState("");
-    const [selectedDriver2, setSelectedDriver2] = useState("");
+// Above this many drivers, only one metric (lap or a sector) is drawn at a time
+const MAX_DRIVERS_FOR_MULTI_METRIC = 3;
+const LINE_KEYS = ["lapTime", "sector1", "sector2", "sector3"];
+const METRIC_FIELDS = {
+    lapTime: "lap_duration",
+    sector1: "duration_sector_1",
+    sector2: "duration_sector_2",
+    sector3: "duration_sector_3",
+};
+
+/**
+ * Lap time chart for any number of drivers in one session.
+ * Parent pages mount this only after data has loaded, so initial
+ * selection is computed once from props.
+ * @param initialDrivers - driver numbers selected on first render
+ */
+const LapTimeChart = ({ drivers = [], laps = [], initialDrivers = [] }) => {
+    const location = useLocation();
+    const isQualifying = location.pathname.includes("qualy-results");
+
+    // Only drivers who actually set laps can be charted
+    const chartDrivers = useMemo(() => {
+        const withLaps = new Set(laps.map((lap) => lap.driver_number));
+        return drivers.filter((d) => withLaps.has(d.driver_number));
+    }, [drivers, laps]);
+
+    // Team colour per driver; the second driver of each team is marked
+    // `secondary` so charts can dash/lighten them
+    const driverStyles = useMemo(() => {
+        const styles = new Map();
+        const seenTeams = new Set();
+        [...chartDrivers]
+            .sort((a, b) => a.driver_number - b.driver_number)
+            .forEach((d) => {
+                styles.set(d.driver_number, {
+                    name: d.last_name ?? `#${d.driver_number}`,
+                    color: getTeamColor(d),
+                    secondary: seenTeams.has(d.team_name),
+                });
+                seenTeams.add(d.team_name);
+            });
+        return styles;
+    }, [chartDrivers]);
+
+    const [selected, setSelected] = useState(() => {
+        const valid = initialDrivers
+            .map(Number)
+            .filter((num) => chartDrivers.some((d) => d.driver_number === num));
+        return valid.length ? valid : chartDrivers.slice(0, 2).map((d) => d.driver_number);
+    });
+
     const [visibleLines, setVisibleLines] = useState({
         lapTime: true,
         sector1: false,
         sector2: false,
         sector3: false,
     });
-    const [compareMode, setCompareMode] = useState(false);
-    // Hooks must run before any early return (Rules of Hooks)
-    const location = useLocation();
-    const isQualifying = location.pathname.includes("qualy-results");
 
+    const manyDrivers = selected.length > MAX_DRIVERS_FOR_MULTI_METRIC;
 
-    const lapsWithDriverNames = laps.map((lap) => {
-        const driver = drivers.find(d => d.driver_number === lap.driver_number);
-        return {
-            ...lap,
-            driver_name: driver ? driver.last_name : lap.driver_number,
-        };
-    });
-
-
-    useEffect(() => {
-        if (!drivers.length || !laps.length) return;
-
-        const driver = drivers.find(
-            (d) => d.driver_number.toString() === initialDriverNumber?.toString()
-        );
-
-        const name = driver ? driver.last_name : null;
-
-        const uniqueDrivers = [
-            ...new Set(
-                lapsWithDriverNames
-                    .filter((lap) => !lap.is_pit_out_lap && lap.driver_name)
-                    .map((lap) => lap.driver_name)
-            ),
-        ];
-
-        if (name && uniqueDrivers.includes(name)) {
-            setSelectedDriver1(name);
-            setSelectedDriver2(uniqueDrivers.find((n) => n !== name) || name);
-        } else if (uniqueDrivers.length > 0) {
-            setSelectedDriver1(uniqueDrivers[0]);
-            setSelectedDriver2(uniqueDrivers[1] || uniqueDrivers[0]);
-        }
-    }, []);
-
-
-    if (!drivers.length) return <p>No drivers found</p>;
-
-
-
-    const driver1Laps = lapsWithDriverNames.filter(
-        (lap) => lap.driver_name === selectedDriver1 && !lap.is_pit_out_lap);
-    const driver2Laps = lapsWithDriverNames.filter(
-        (lap) => lap.driver_name === selectedDriver2 && !lap.is_pit_out_lap);
-
-
-    const driver1Map = new Map(driver1Laps.map((lap) => [lap.lap_number, lap]));
-    const driver2Map = new Map(driver2Laps.map((lap) => [lap.lap_number, lap]));
-    const allLapNumbers = Array.from(
-        new Set([...driver1Map.keys(), ...driver2Map.keys()])
-    ).sort((a, b) => a - b);
-
-
-    const combinedData = allLapNumbers.map((lapNumber) => ({
-        lapNumber,
-        lapDuration1: driver1Map.get(lapNumber)?.lap_duration,
-        sector1_1: driver1Map.get(lapNumber)?.duration_sector_1,
-        sector2_1: driver1Map.get(lapNumber)?.duration_sector_2,
-        sector3_1: driver1Map.get(lapNumber)?.duration_sector_3,
-
-        lapDuration2: compareMode ? driver2Map.get(lapNumber)?.lap_duration : null,
-        sector1_2: compareMode ? driver2Map.get(lapNumber)?.duration_sector_1 : null,
-        sector2_2: compareMode ? driver2Map.get(lapNumber)?.duration_sector_2 : null,
-        sector3_2: compareMode ? driver2Map.get(lapNumber)?.duration_sector_3 : null,
-    }));
-
-
-    const driverNames = [...new Set(lapsWithDriverNames.map((d) => d.driver_name))].sort();
+    // With many drivers, keep only the first checked metric so the chart stays readable
+    const effectiveLines = useMemo(() => {
+        if (!manyDrivers) return visibleLines;
+        const first = LINE_KEYS.find((key) => visibleLines[key]) ?? "lapTime";
+        return Object.fromEntries(LINE_KEYS.map((key) => [key, key === first]));
+    }, [visibleLines, manyDrivers]);
 
     const handleToggleLine = (key) => {
-        setVisibleLines((prev) => ({
-            ...prev,
-            [key]: !prev[key],
-        }));
+        setVisibleLines((prev) =>
+            manyDrivers
+                ? Object.fromEntries(LINE_KEYS.map((k) => [k, k === key]))
+                : { ...prev, [key]: !prev[key] }
+        );
     };
+
+    // One row per lap: { lapNumber, "1_lapTime": 92.1, "1_sector1": 29.4, "44_lapTime": ... }
+    // Pit out-laps are skipped because they distort the scale.
+    const lapData = useMemo(() => {
+        if (isQualifying) return [];
+        const selectedSet = new Set(selected);
+        const rows = new Map();
+        for (const lap of laps) {
+            if (lap.is_pit_out_lap || !selectedSet.has(lap.driver_number)) continue;
+            const row = rows.get(lap.lap_number) ?? { lapNumber: lap.lap_number };
+            for (const [key, field] of Object.entries(METRIC_FIELDS)) {
+                row[`${lap.driver_number}_${key}`] = lap[field];
+            }
+            rows.set(lap.lap_number, row);
+        }
+        return [...rows.values()].sort((a, b) => a.lapNumber - b.lapNumber);
+    }, [laps, selected, isQualifying]);
+
+    const bestLaps = useMemo(
+        () => (isQualifying ? getBestLapsByDriver(laps) : new Map()),
+        [laps, isQualifying]
+    );
+
+    if (!chartDrivers.length) return <p>No lap data found for this session.</p>;
 
     return (
         <div>
-            <DriverSelector
-                id="driverSelect1"
-                label="Select Driver 1:"
-                drivers={driverNames}
-                selectedDriver={selectedDriver1}
-                onChange={setSelectedDriver1}
-                disabledDriver={compareMode ? selectedDriver2 : null} />
-
-            {compareMode && (
-                <DriverSelector
-                    id="driverSelect2"
-                    label="Select Driver 2:"
-                    drivers={driverNames}
-                    selectedDriver={selectedDriver2}
-                    onChange={setSelectedDriver2}
-                    disabledDriver={selectedDriver1}
-                />
-            )}
-
-            <CompareToggle
-                compareMode={compareMode}
-                onToggle={() => setCompareMode((prev) => !prev)}
+            <DriverPicker
+                drivers={chartDrivers}
+                selected={selected}
+                onChange={setSelected}
+                styles={driverStyles}
             />
 
             <hr />
 
+            {!isQualifying && (
+                <>
+                    <LineVisibilityToggle visibleLines={effectiveLines} onToggle={handleToggleLine} />
+                    {manyDrivers && (
+                        <p className="small text-muted">
+                            Showing one metric at a time when more than {MAX_DRIVERS_FOR_MULTI_METRIC} drivers are selected.
+                        </p>
+                    )}
+                </>
+            )}
 
-            {!isQualifying ? (
-                <LineVisibilityToggle
-                    visibleLines={visibleLines}
-                    onToggle={handleToggleLine} />
-            ) : (null)}
-
-            {isQualifying ? (
-                <FastestLapLineDisplay
-                    laps={laps}
-                    drivers={drivers}
-                    visibleLines={visibleLines}
-                    compareMode={compareMode}
-                    driver1={selectedDriver1}
-                    driver2={selectedDriver2}
-                />
+            {!selected.length ? (
+                <p>Select at least one driver to see lap data.</p>
+            ) : isQualifying ? (
+                <FastestLapLineDisplay bestLaps={bestLaps} selected={selected} styles={driverStyles} />
             ) : (
-                combinedData.length > 0 ? (
-                    <SessionLapsLineDisplay
-                        data={combinedData}
-                        visibleLines={visibleLines}
-                        compareMode={compareMode}
-                        driver1={selectedDriver1}
-                        driver2={selectedDriver2}
-                    />
-                ) : (
-                    <p>Select drivers to preview lap data!</p>
-                )
+                <SessionLapsLineDisplay
+                    data={lapData}
+                    selected={selected}
+                    styles={driverStyles}
+                    visibleLines={effectiveLines}
+                />
             )}
         </div>
-    )
+    );
 };
-
 
 export default LapTimeChart;
