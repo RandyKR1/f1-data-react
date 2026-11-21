@@ -28,3 +28,9 @@ BuildNotes.md
 *.njsproj
 *.sln
 *.sw?
+
+# Data pipeline
+/data/
+*.duckdb
+.venv/
+/exports/
