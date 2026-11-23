@@ -142,7 +142,10 @@ The grid is filed under the qualifying session that set it.
 OpenF1's free tier allows **3 requests per second and 30 requests per
 minute**. The per-minute limit is the one that matters for bulk downloads.
 
-- `ingest.py` waits **2.1 s between requests** (about 28.5 per minute).
+- `ingest.py` starts each request **at least 2.1 s after the previous one
+  started** (start-to-start, never shorter), so there are at most about 28.5
+  per minute. A slow response uses up part of the gap rather than adding to
+  it, so a run takes about requests x 2.1 s.
 - On **HTTP 429** it waits and retries up to 5 times. It uses the `Retry-After`
   header if one is sent, otherwise waits 5 s, then 10, 20, 40, 80. If all 5
   retries are rate limited, the script stops with a clear message.
@@ -181,3 +184,26 @@ be incomplete.
 
 - Re-download the most recent weekend a few days after it ends, before
   treating its data as final.
+
+## Findings from the 8-session test sample (run 23 November 2026)
+
+Sample: Race and Qualifying for 2025 Australia (wet), 2025 China (sprint
+weekend), 2025 Belgium (red flag), and 2026 Italy (dry).
+
+- **No `pit` data for Monza 2026 Qualifying (session 11357).** The API
+  returned 404, but the other three qualifying sessions in the sample each have
+  about 101 `pit` rows, because cars use the pit lane constantly in qualifying.
+  This may be a genuine gap in OpenF1's data. **Re-check during the full run**:
+  if other 2026 qualifying sessions also have no `pit` data, it's a 2026-wide
+  change rather than a one-off.
+- **2026 has 22 drivers and 11 teams** (Cadillac joined). `drivers`,
+  `session_result`, and `starting_grid` have 22 rows per session in 2026 and
+  20 in 2023-2025. Base driver-count checks on the season, not a fixed 20.
+- **Monza 2026 race (11361) had a Safety Car on lap 3 and a VSC on laps
+  28-29** (`race_control` category `SafetyCar`: "SAFETY CAR DEPLOYED",
+  "VSC DEPLOYED", "VSC ENDING"). It was dry and had no red flag. Useful for
+  testing SC/VSC detection later.
+- **Spa 2025 race (9939) was red-flagged before the start.** `race_control`
+  shows "STARTING PROCEDURE SUSPENDED", then `flag = 'RED'` at 13:01 UTC
+  (lap 1), and "RACE WILL RESUME AT 16:20". Useful for testing red-flag
+  detection.

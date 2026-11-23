@@ -66,7 +66,8 @@ ENDPOINTS_BY_SESSION_NAME = {
 }
 
 # OpenF1 free tier allows 3 requests/second and 30 requests/minute.
-# 2.1 s between requests is about 28.5/minute, just under the per-minute cap.
+# Each request starts at least 2.1 s after the previous one started
+# (start-to-start), so there are never more than about 28.5 per minute.
 DELAY_SECONDS = 2.1
 
 # On HTTP 429 (rate limited): retry up to this many times. Use the server's
@@ -202,12 +203,14 @@ def log_no_data(endpoint, session_key="", session_name="", year=""):
 
 # --- HTTP ---------------------------------------------------------------------
 
-# Remember when the last request happened so we can always wait between calls.
+# When the previous request *started* (time.monotonic()), for pacing.
 _last_request_time = None
 
 
 def wait_for_rate_limit():
-    """Sleep so that requests are at least DELAY_SECONDS apart."""
+    """Sleep until at least DELAY_SECONDS have passed since the previous
+    request started. A slow response uses up part of the gap, so it doesn't
+    add extra time, but the gap is never shorter than DELAY_SECONDS."""
     if _last_request_time is not None:
         elapsed = time.monotonic() - _last_request_time
         if elapsed < DELAY_SECONDS:
@@ -240,8 +243,9 @@ def fetch_json(endpoint, params):
 
     for attempt in range(MAX_RETRIES + 1):   # first try + up to 5 retries
         wait_for_rate_limit()
-        response = requests.get(url, params=params, timeout=60)
+        # Record the start time before sending, so pacing is start-to-start.
         _last_request_time = time.monotonic()
+        response = requests.get(url, params=params, timeout=60)
         STATS["requests"] += 1
 
         if response.status_code == 404:
@@ -490,8 +494,12 @@ def print_dry_run(sessions, chosen_endpoints, years, skip_schedule):
     print(f"Schedule requests:    {schedule_requests}"
           + ("  (--skip-schedule)" if skip_schedule else "  (meetings + sessions per year)"))
     print(f"Total requests:       {total}")
+    # Requests start DELAY_SECONDS apart (start-to-start), so the run takes
+    # about total x DELAY_SECONDS. Only a response slower than DELAY_SECONDS,
+    # or a 429 wait, makes it longer.
     print(f"Estimated time:       {format_duration(total * DELAY_SECONDS)} "
-          f"at {DELAY_SECONDS} s per request (excluding any 429 waits)")
+          f"({DELAY_SECONDS} s start-to-start per request; longer only if a "
+          f"response takes over {DELAY_SECONDS} s or a 429 wait occurs)")
 
 
 # --- Main ---------------------------------------------------------------------
