@@ -188,7 +188,8 @@ be incomplete.
 ## Findings from the 8-session test sample (run 23 November 2026)
 
 Sample: Race and Qualifying for 2025 Australia (wet), 2025 China (sprint
-weekend), 2025 Belgium (red flag), and 2026 Italy (dry).
+weekend), 2025 Belgium (red flag), and 2026 Italy (dry, but also red-flagged,
+so it doesn't serve as the "normal dry weekend" it was chosen for).
 
 - **No `pit` data for Monza 2026 Qualifying (session 11357).** The API
   returned 404, but the other three qualifying sessions in the sample each have
@@ -199,11 +200,65 @@ weekend), 2025 Belgium (red flag), and 2026 Italy (dry).
 - **2026 has 22 drivers and 11 teams** (Cadillac joined). `drivers`,
   `session_result`, and `starting_grid` have 22 rows per session in 2026 and
   20 in 2023-2025. Base driver-count checks on the season, not a fixed 20.
-- **Monza 2026 race (11361) had a Safety Car on lap 3 and a VSC on laps
-  28-29** (`race_control` category `SafetyCar`: "SAFETY CAR DEPLOYED",
-  "VSC DEPLOYED", "VSC ENDING"). It was dry and had no red flag. Useful for
-  testing SC/VSC detection later.
+- **Monza 2026 race (11361) was dry but red-flagged on lap 3** (corrected:
+  an earlier version of this entry wrongly said "no red flag").
+  - Dry: `weather.rainfall` is 0 in all 176 rows.
+  - Lap 3: "SAFETY CAR DEPLOYED" at 13:06:49 UTC, then "SESSION ABORTED" and
+    "RED FLAG - RACE SUSPENDED" at 13:07:43, a **32-minute stoppage**, then
+    "SESSION STARTED" at 13:39:00 and a **standing restart** (with an "EXTRA
+    FORMATION LAP").
+  - VSC on laps 28-29 ("VSC DEPLOYED", "VSC ENDING").
+  - Useful for testing red-flag, Safety Car, and VSC detection.
 - **Spa 2025 race (9939) was red-flagged before the start.** `race_control`
   shows "STARTING PROCEDURE SUSPENDED", then `flag = 'RED'` at 13:01 UTC
   (lap 1), and "RACE WILL RESUME AT 16:20". Useful for testing red-flag
   detection.
+
+## Red flags aren't always in the `flag` column
+
+`race_control` logs red flags in more than one way:
+
+| Race | `category` | `flag` | `message` |
+|---|---|---|---|
+| Spa 2025 (9939) | `Flag` | `RED` | "RED FLAG" |
+| Monza 2026 (11361) | `Other` | empty | "RED FLAG - RACE SUSPENDED" |
+| Monza 2026 (11361) | `SessionStatus` | empty | "SESSION ABORTED" |
+
+- **Red-flag detection must match the message text** (for example
+  `message LIKE 'RED FLAG%'` or `message = 'SESSION ABORTED'`), not just
+  `flag = 'RED'`. A `flag = 'RED'` filter alone misses Monza 2026.
+
+## Melbourne 2025 race: garbled stints for drivers 5, 30 and 87
+
+In `stints` for session 9693, drivers **#5, #30 and #87** have seven stints
+each. Stints 1-5 cover only laps 1-4, and some run backwards (`lap_end`
+before `lap_start`, e.g. stint 3 = laps 3 to 2), all on INTERMEDIATE. It
+looks like OpenF1 misread tyre changes in the wet. Every other stint boundary
+in the test sample joins cleanly (next `lap_start` = previous `lap_end` + 1).
+
+- **Handle in the cleaning step, not in raw data.** Raw files stay exactly as
+  the API sent them. `validate_raw.py` reports these as a Stint logic FAIL.
+
+## Qualifying laps include garage time (up to about 1,500 s)
+
+Qualifying `laps` include laps of several minutes, up to about 1,500 s at
+Monza 2026, that are really time in the garage between runs. A lap timed from
+the garage counts the wait.
+
+- In Shanghai, Spa, and Monza, all of them are marked `is_pit_out_lap`. In
+  **Melbourne 2025 (9689) 71 of 73 are not**, so **`is_pit_out_lap` alone
+  can't exclude them**. Also filter on duration relative to the session's
+  typical pace.
+
+## Red-flag stoppages inflate lap and pit times
+
+A red-flag stoppage counts toward the lap it happens on, and toward pit-lane
+time for cars waiting in the pit lane.
+
+- Monza 2026 (11361): `lap_duration` for lap 4 is about 1,950 s for 21
+  drivers, and `pit.lane_duration` is about 1,840 s for 21 drivers (all
+  logged at 13:39, the restart).
+- Spa 2025 (9939): lap 1 is 202-219 s (Safety Car restart after the
+  red flag).
+- **Pit and lap analysis must exclude red-flag periods** (find them in
+  `race_control`, using the message-text matching above).
