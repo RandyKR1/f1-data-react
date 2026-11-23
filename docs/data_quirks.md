@@ -44,17 +44,25 @@ a driver didn't reach. In races the same fields are single values.
   `TRY_CAST(gap_to_leader AS DOUBLE)` for race gaps, or
   `json_extract(duration, '$[2]')` for Q3 time.
 
-## Whole-number columns become decimals when a value is missing
+## Whole-number columns become decimals when a value is missing (handled at ingest)
 
-pandas can't store an empty value in a whole-number column, so it switches the
-column to decimals. The same column can therefore be `int64` in one file and
-`double` in another.
+Plain pandas can't store an empty value in a whole-number column, so it
+switches the column to decimals. Without a fix, the same column could be
+`int64` in one file and `double` in another.
 
-- Seen with: `session_result.number_of_laps` is `int64` for the 2025
+- Seen with: `session_result.number_of_laps` was `int64` for the 2025
   Australian GP (9693) but `double` for the 2025 Chinese GP (9998). In China,
   Leclerc, Hamilton, and Gasly were disqualified and have no lap count.
-- Harmless for now: read raw files with `union_by_name=true` and DuckDB
-  combines them as `double`. Cast back to integer in the cleaning step.
+- **Handled at ingest:** `ingest.py` checks the raw API values. If every
+  non-missing value in a column is a JSON integer, the column is saved with
+  pandas' nullable `Int64` type, so it stays whole-number and missing values
+  are real nulls. This also covers `position`, `i1_speed`, `i2_speed`, and
+  `st_speed`, which have gaps.
+- Decimal fields are untouched: the API sends them as floats (for example
+  `points: 25.0`), so they're never converted to whole numbers.
+- Still possible: a column that's empty in every row of one file (for example
+  `drivers.country_code`, which is always null so far) has no type to detect.
+  If it has values in other files, read with `union_by_name=true`.
 
 ## 2025 Australian GP was wet: many stints
 

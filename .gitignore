@@ -34,3 +34,4 @@ BuildNotes.md
 *.duckdb
 .venv/
 /exports/
+__pycache__/

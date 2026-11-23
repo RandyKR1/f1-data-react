@@ -107,12 +107,34 @@ def to_json_text(series):
     return encoded.astype("string")
 
 
-def make_parquet_safe(df, endpoint):
+def find_whole_number_columns(records):
+    """Return the columns whose non-missing values are all JSON integers.
+
+    Checked on the raw API records, before pandas touches them: the API sends
+    whole-number fields as ints (position: 3) and decimal fields as floats
+    (points: 25.0), so this never mistakes a decimal column for a whole one.
+    Columns that are entirely missing are not included.
+    """
+    all_ints = {}  # column -> True while every value seen so far is an int
+    for record in records:
+        for col, value in record.items():
+            if value is None:
+                continue
+            # bool is a subclass of int in Python, so rule it out explicitly.
+            is_int = isinstance(value, int) and not isinstance(value, bool)
+            all_ints[col] = all_ints.get(col, True) and is_int
+    return [col for col, ok in all_ints.items() if ok]
+
+
+def make_parquet_safe(df, endpoint, whole_number_cols):
     """Make sure every column can be saved to Parquet, without losing values.
 
     1. Columns listed in ALWAYS_JSON for this endpoint are always JSON text,
        so their type is the same in every file.
-    2. Any other column is kept as-is if Parquet accepts it. If Parquet rejects
+    2. Whole-number columns use pandas' nullable Int64 type. Plain pandas turns
+       an int column into decimals as soon as one value is missing (e.g.
+       number_of_laps for a disqualified driver); Int64 keeps it whole.
+    3. Any other column is kept as-is if Parquet accepts it. If Parquet rejects
        it (e.g. mixed numbers and text, or lists with mixed items), it's
        stored as JSON text instead.
     """
@@ -121,6 +143,10 @@ def make_parquet_safe(df, endpoint):
     for col in df.columns:
         if col in always_json:
             df[col] = to_json_text(df[col])
+            continue
+
+        if col in whole_number_cols:
+            df[col] = df[col].astype("Int64")
             continue
 
         # Ask pyarrow (the Parquet library) whether it can convert this column.
@@ -139,7 +165,8 @@ def save_parquet(records, endpoint, out_path):
     Every field the API returns becomes a column; nothing is dropped or renamed.
     Prints one line with the row count.
     """
-    df = make_parquet_safe(pd.DataFrame(records), endpoint)
+    whole_number_cols = find_whole_number_columns(records)
+    df = make_parquet_safe(pd.DataFrame(records), endpoint, whole_number_cols)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out_path, index=False)
     print(f"Saved {out_path.relative_to(REPO_ROOT)} ({len(df)} rows)")
