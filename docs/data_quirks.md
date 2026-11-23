@@ -153,3 +153,31 @@ minute**. The per-minute limit is the one that matters for bulk downloads.
   roughly 3 hours. Use `--year` and `--endpoints` to split the work.
 - OpenF1 is also unavailable during live F1 sessions; avoid running ingest
   then.
+
+## 2026 schedule changes: cancellations and a relocated "Bahrain Grand Prix"
+
+- **Bahrain (meeting 1282) and Saudi Arabia (meeting 1283) 2026 are
+  cancelled.** All their sessions have `is_cancelled = true`, and ingest skips
+  them.
+- **A replacement "Bahrain Grand Prix" ran in Kuala Lumpur** (meeting 1308,
+  official name "FORMULA 1 GULF AIR BAHRAIN GRAND PRIX IN MALAYSIA 2026",
+  4 October 2026). Its `meeting_name`, `country_code` (BRN), and `country_name`
+  (Bahrain) all say Bahrain, but the circuit is different: `circuit_key` 12
+  (Kuala Lumpur) instead of 63 (Sakhir).
+- **Match circuits on `circuit_key`, never on meeting or event name, for
+  season-to-season comparisons.** Joining on `meeting_name = 'Bahrain Grand
+  Prix'` would compare Sakhir 2023-2025 with Kuala Lumpur 2026.
+- `location` isn't stable either: 2026 pre-season testing uses `location`
+  "Bahrain", while every other Sakhir meeting uses "Sakhir" (same
+  `circuit_key` 63).
+
+## Recently finished sessions may still be filling in
+
+OpenF1 populates some fields after a session ends. The docs say
+`pit.stop_duration` "may be unavailable during live sessions but is typically
+populated within a few hours after the session ends". As of 23 November 2026,
+Las Vegas 2026 (finished 22 November) is the most recent session and may still
+be incomplete.
+
+- Re-download the most recent weekend a few days after it ends, before
+  treating its data as final.

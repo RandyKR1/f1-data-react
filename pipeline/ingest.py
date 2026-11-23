@@ -9,11 +9,16 @@ Step 2 - per-session data (one file per session, cancelled sessions skipped):
     data/raw/<endpoint>/year=YYYY/session_<session_key>.parquet
     for each endpoint in SESSION_ENDPOINTS (or just those given with --endpoints)
 
+Which endpoints are requested depends on the session (ENDPOINTS_BY_SESSION_NAME);
+sessions not in that map, cancelled sessions, and unfinished sessions are skipped.
+
 Examples (run from anywhere):
     python pipeline/ingest.py                              # everything, 2023-2026
-    python pipeline/ingest.py --year 2025                  # one year only
-    python pipeline/ingest.py --year 2025 --skip-schedule \
-        --session-name Race --limit 2                      # quick test run
+    python pipeline/ingest.py --year 2025,2026 \
+        --session-name Race,Qualifying                     # GP races + qualifying
+    python pipeline/ingest.py --session-keys 9689,9693 \
+        --skip-schedule                                    # exact sessions
+    python pipeline/ingest.py --year 2025 --dry-run        # plan only, no requests
 """
 
 import argparse
@@ -40,6 +45,26 @@ SESSION_ENDPOINTS = [
     "pit", "position", "race_control", "weather",
     "starting_grid", "team_radio", "overtakes",
 ]
+
+
+def all_except(*excluded):
+    """All per-session endpoints except the ones named, in the usual order."""
+    return [e for e in SESSION_ENDPOINTS if e not in excluded]
+
+
+# Which endpoints to request for each session_name (matched exactly).
+# Sessions whose name isn't here are skipped with a note.
+ENDPOINTS_BY_SESSION_NAME = {
+    # starting_grid is filed under the qualifying session, so it 404s here.
+    "Race": all_except("starting_grid"),
+    # overtakes only exist for races; starting_grid lives here.
+    "Qualifying": all_except("overtakes"),
+    # To add later, for example:
+    # "Sprint": all_except("starting_grid"),
+    # "Sprint Qualifying": all_except("overtakes"),   # holds the Sprint grid
+    # "Practice 1": all_except("starting_grid", "overtakes"),
+}
+
 # OpenF1 free tier allows 3 requests/second and 30 requests/minute.
 # 2.1 s between requests is about 28.5/minute, just under the per-minute cap.
 DELAY_SECONDS = 2.1
@@ -86,27 +111,59 @@ STATS = {"requests": 0, "files_saved": 0, "no_data": 0, "rate_limited": 0}
 def parse_args():
     """Read the command-line options."""
     parser = argparse.ArgumentParser(description="Download raw OpenF1 data to Parquet.")
-    parser.add_argument("--year", type=int, choices=list(YEARS),
-                        help="only process this one year (default: all years)")
+    parser.add_argument("--year", type=parse_year_list, default=list(YEARS),
+                        help="comma-separated years, e.g. 2025,2026 (default: all years)")
     parser.add_argument("--limit", type=int,
                         help="only process the first N sessions (in date order)")
     parser.add_argument("--skip-schedule", action="store_true",
                         help="don't re-download meetings and sessions; use the saved files")
     # Filter on session_name, not session_type: OpenF1 labels Sprints as
     # session_type "Race", so only session_name separates them from Grands Prix.
-    parser.add_argument("--session-name",
-                        help='only process sessions with this name, e.g. "Race", "Sprint", "Qualifying"')
+    parser.add_argument("--session-name", type=parse_text_list,
+                        help='comma-separated exact session names, e.g. "Race,Qualifying" '
+                             '(matches Grands Prix only, not "Sprint" or "Sprint Qualifying")')
+    parser.add_argument("--session-keys", type=parse_int_list,
+                        help="comma-separated session_keys to process, e.g. 9689,9693")
     parser.add_argument("--endpoints", type=parse_endpoint_list, default=SESSION_ENDPOINTS,
                         help="comma-separated per-session endpoints to download, "
                              "e.g. pit,weather (default: all of them)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="don't contact the API; use the saved schedule to list "
+                             "the requests this run would make, with a time estimate")
     return parser.parse_args()
+
+
+def parse_text_list(text):
+    """Turn "Race, Qualifying" into ["Race", "Qualifying"]."""
+    items = [item.strip() for item in text.split(",") if item.strip()]
+    if not items:
+        raise argparse.ArgumentTypeError("expected at least one value")
+    return items
+
+
+def parse_int_list(text):
+    """Turn "9689, 9693" into [9689, 9693]."""
+    try:
+        return [int(item) for item in parse_text_list(text)]
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected comma-separated numbers, got {text!r}")
+
+
+def parse_year_list(text):
+    """Turn "2025,2026" into [2025, 2026], rejecting years outside YEARS."""
+    years = parse_int_list(text)
+    bad = [y for y in years if y not in YEARS]
+    if bad:
+        raise argparse.ArgumentTypeError(
+            f"unsupported year(s) {bad}; choose from {YEARS.start}-{YEARS.stop - 1}")
+    return years
 
 
 def parse_endpoint_list(text):
     """Turn "pit, weather" into ["pit", "weather"], rejecting unknown names."""
-    names = [name.strip() for name in text.split(",") if name.strip()]
+    names = parse_text_list(text)
     unknown = [name for name in names if name not in SESSION_ENDPOINTS]
-    if unknown or not names:
+    if unknown:
         raise argparse.ArgumentTypeError(
             f"unknown endpoint(s) {unknown}; choose from: {', '.join(SESSION_ENDPOINTS)}")
     return names
@@ -315,11 +372,15 @@ def download_schedule(years):
 
 # --- Step 2: pick which sessions to process -----------------------------------
 
-def load_sessions(years, session_name=None, limit=None):
+def load_sessions(years, session_names=None, session_keys=None, limit=None):
     """Read the saved session files and return the sessions to process.
 
-    Skips cancelled sessions, optionally filters by session_name, sorts by
-    start time, and optionally keeps only the first `limit` rows.
+    Applied in this order:
+      1. skip cancelled sessions
+      2. skip sessions that haven't finished yet (date_end in the future)
+      3. keep only the given session_keys / session_names, if any were given
+      4. skip sessions with no entry in ENDPOINTS_BY_SESSION_NAME (with a note)
+      5. sort by start time and keep the first `limit`, if given
     """
     frames = []
     for year in years:
@@ -327,14 +388,36 @@ def load_sessions(years, session_name=None, limit=None):
         frames.append(pd.read_parquet(path))
     sessions = pd.concat(frames, ignore_index=True)
 
-    # Skip cancelled sessions. fillna(False) treats a missing flag as "not cancelled".
+    # 1. Cancelled. fillna(False) treats a missing flag as "not cancelled".
     cancelled = sessions["is_cancelled"].fillna(False).astype(bool)
     print(f"Skipping {cancelled.sum()} cancelled session(s)")
     sessions = sessions[~cancelled]
 
-    if session_name:
-        sessions = sessions[sessions["session_name"] == session_name]
+    # 2. Not finished yet. A missing date_end counts as not finished.
+    date_end = pd.to_datetime(sessions["date_end"], utc=True)
+    finished = date_end <= pd.Timestamp.now(tz="UTC")
+    print(f"Skipping {(~finished).sum()} session(s) that haven't finished yet")
+    sessions = sessions[finished]
 
+    # 3. Explicit filters.
+    if session_keys:
+        missing = sorted(set(session_keys) - set(sessions["session_key"]))
+        if missing:
+            print(f"Note: session_key(s) {missing} not found among finished, "
+                  f"non-cancelled sessions for years {years}")
+        sessions = sessions[sessions["session_key"].isin(session_keys)]
+    if session_names:
+        sessions = sessions[sessions["session_name"].isin(session_names)]
+
+    # 4. No endpoint map entry: list what's skipped, grouped by name.
+    mapped = sessions["session_name"].isin(ENDPOINTS_BY_SESSION_NAME)
+    if (~mapped).any():
+        counts = sessions.loc[~mapped, "session_name"].value_counts()
+        listing = ", ".join(f"{name} ({n})" for name, n in counts.items())
+        print(f"Skipping {(~mapped).sum()} session(s) with no endpoint map entry: {listing}")
+    sessions = sessions[mapped]
+
+    # 5. Order and limit.
     sessions = sessions.sort_values("date_start")
     if limit is not None:
         sessions = sessions.head(limit)
@@ -342,15 +425,21 @@ def load_sessions(years, session_name=None, limit=None):
     return sessions
 
 
+def endpoints_for(session_name, chosen_endpoints):
+    """The endpoints to request for one session: its map entry, narrowed to
+    --endpoints if that was given."""
+    return [e for e in ENDPOINTS_BY_SESSION_NAME[session_name] if e in chosen_endpoints]
+
+
 # --- Step 3: per-session data (one file per endpoint per session) ------------
 
-def download_session_data(sessions, endpoints):
-    """For each session, download each chosen endpoint to its own file."""
+def download_session_data(sessions, chosen_endpoints):
+    """For each session, download its mapped endpoints, each to its own file."""
     for session in sessions.itertuples():
         print(f"\nSession {session.session_key}: {session.year} "
               f"{session.location} - {session.session_name}")
 
-        for endpoint in endpoints:
+        for endpoint in endpoints_for(session.session_name, chosen_endpoints):
             records = fetch_json(endpoint, {"session_key": session.session_key})
             if records is None:
                 # 404: no data for this session (e.g. starting_grid for a race,
@@ -360,6 +449,49 @@ def download_session_data(sessions, endpoints):
             out_path = (RAW_DIR / endpoint / f"year={session.year}"
                         / f"session_{session.session_key}.parquet")
             save_parquet(records, endpoint, out_path)
+
+
+# --- Dry run ------------------------------------------------------------------
+
+def format_duration(seconds):
+    """Turn 2016 into "33 min 36 s"."""
+    minutes, secs = divmod(round(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours} h {minutes} min" if hours else f"{minutes} min {secs} s"
+
+
+def print_dry_run(sessions, chosen_endpoints, years, skip_schedule):
+    """Print the requests a run would make, without contacting the API."""
+    print("\n--- Dry run (no API requests made) ---")
+
+    # Sessions selected, by year and session name.
+    print(f"\nSessions selected: {len(sessions)}")
+    if len(sessions):
+        table = pd.crosstab(sessions["year"], sessions["session_name"],
+                            margins=True, margins_name="Total")
+        print(table.to_string())
+
+    # Requests per endpoint: each session's mapped endpoints, added up.
+    per_endpoint = {e: 0 for e in SESSION_ENDPOINTS}
+    for name in sessions["session_name"]:
+        for endpoint in endpoints_for(name, chosen_endpoints):
+            per_endpoint[endpoint] += 1
+    print("\nRequests per endpoint:")
+    for endpoint, count in per_endpoint.items():
+        if count:
+            print(f"  {endpoint:16} {count}")
+
+    # Totals and time estimate. A real run also re-downloads meetings and
+    # sessions for each year unless --skip-schedule is given.
+    session_requests = sum(per_endpoint.values())
+    schedule_requests = 0 if skip_schedule else len(SCHEDULE_ENDPOINTS) * len(years)
+    total = session_requests + schedule_requests
+    print(f"\nPer-session requests: {session_requests}")
+    print(f"Schedule requests:    {schedule_requests}"
+          + ("  (--skip-schedule)" if skip_schedule else "  (meetings + sessions per year)"))
+    print(f"Total requests:       {total}")
+    print(f"Estimated time:       {format_duration(total * DELAY_SECONDS)} "
+          f"at {DELAY_SECONDS} s per request (excluding any 429 waits)")
 
 
 # --- Main ---------------------------------------------------------------------
@@ -377,7 +509,13 @@ def print_summary():
 
 def main():
     args = parse_args()
-    years = [args.year] if args.year else list(YEARS)
+    years = args.year
+
+    # Dry run: work everything out from the saved schedule, request nothing.
+    if args.dry_run:
+        sessions = load_sessions(years, args.session_name, args.session_keys, args.limit)
+        print_dry_run(sessions, args.endpoints, years, args.skip_schedule)
+        return
 
     # The summary prints even if the run stops early on an error.
     try:
@@ -388,7 +526,7 @@ def main():
             download_schedule(years)
 
         # Step 2: decide which sessions to fetch.
-        sessions = load_sessions(years, args.session_name, args.limit)
+        sessions = load_sessions(years, args.session_name, args.session_keys, args.limit)
         print(f"Processing {len(sessions)} session(s)")
 
         # Step 3: fetch the chosen per-session endpoints (all of them by default).
