@@ -1,6 +1,6 @@
 # Raw data validation report
 
-Generated 2026-11-23 18:55 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
+Generated 2026-11-23 19:01 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
 
 Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361]`. Sessions checked: 8. Expected files: 80, present: 79.
 
@@ -9,7 +9,7 @@ Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361]`. Se
 | Check | FAIL | WARN | INFO |
 |---|---|---|---|
 | Inventory | 0 | 0 | 1 |
-| Schema consistency | 0 | 11 | 0 |
+| Schema consistency | 0 | 0 | 0 |
 | Key columns | 0 | 0 | 0 |
 | Duplicates | 0 | 0 | 0 |
 | Empty columns | 0 | 0 | 11 |
@@ -26,17 +26,7 @@ Empty columns already documented in `docs/data_quirks.md` (not reported again): 
 
 ## Schema consistency
 
-- **WARN** `pit` session 9689 (2025 Melbourne Qualifying): `stop_duration` is entirely empty here, so it has no real type (read as INTEGER; DOUBLE where it has values)
-- **WARN** `pit` session 9994 (2025 Shanghai Qualifying): `stop_duration` is entirely empty here, so it has no real type (read as INTEGER; DOUBLE where it has values)
-- **WARN** `pit` session 9935 (2025 Spa-Francorchamps Qualifying): `stop_duration` is entirely empty here, so it has no real type (read as INTEGER; DOUBLE where it has values)
-- **WARN** `race_control` session 9689 (2025 Melbourne Qualifying): `driver_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 9994 (2025 Shanghai Qualifying): `driver_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 9935 (2025 Spa-Francorchamps Qualifying): `driver_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 11357 (2026 Monza Qualifying): `driver_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 9689 (2025 Melbourne Qualifying): `lap_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 9994 (2025 Shanghai Qualifying): `lap_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 9935 (2025 Spa-Francorchamps Qualifying): `lap_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
-- **WARN** `race_control` session 11357 (2026 Monza Qualifying): `lap_number` is entirely empty here, so it has no real type (read as INTEGER; BIGINT where it has values)
+No issues.
 
 ## Key columns
 

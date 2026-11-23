@@ -60,9 +60,38 @@ switches the column to decimals. Without a fix, the same column could be
   `st_speed`, which have gaps.
 - Decimal fields are untouched: the API sends them as floats (for example
   `points: 25.0`), so they're never converted to whole numbers.
-- Still possible: a column that's empty in every row of one file (for example
-  `drivers.country_code`, which is always null so far) has no type to detect.
-  If it has values in other files, read with `union_by_name=true`.
+- A column that's empty in every row of a file has no values to detect a
+  type from. That case is now **handled by the declared schemas** (see
+  "Empty columns keep their type" below).
+
+## Empty columns keep their type: declared schemas (handled at ingest)
+
+Some columns are entirely empty in some files: `race_control.lap_number` and
+`driver_number` in qualifying, `race_control.qualifying_phase` outside
+qualifying, `pit.stop_duration` in qualifying, and `drivers.country_code`
+everywhere so far. Without a declared type, Parquet stores such a column with
+its `null` type, which DuckDB reads back as `INTEGER`, so the column's type
+would differ between files.
+
+- **Handled at ingest:** `SCHEMAS` in `ingest.py` declares every known column
+  and its type for every endpoint. It was built from the types observed in
+  files where each column has values. `drivers.country_code` was never
+  observed with a value, so it's declared as text per the OpenF1 docs.
+  Every column present is saved with its declared type, even when empty, so a
+  column has the same type in every file. Columns are never added or dropped.
+- **New columns:** if the API sends a column that isn't in `SCHEMAS`, ingest
+  keeps it with its inferred type and prints a `WARNING` naming the endpoint
+  and column. Add it to `SCHEMAS` when that happens.
+- **Re-applying to existing files:** `python pipeline/ingest.py --resave-local`
+  re-saves raw files already on disk with the declared schemas, without
+  contacting the API. It honours `--year` and `--session-keys`. Values are
+  unchanged: the 8-session test sample's row-by-row fingerprints were
+  identical before and after.
+- `validate_raw.py` reports 0 schema WARNs for the test sample after
+  re-saving, down from 11.
+- Lists (`laps.segments_sector_*`) are kept exactly as sent, as lists of
+  whole numbers. Re-saving reads them straight from the file, because going
+  through pandas would turn any list with a missing item into decimals.
 
 ## 2025 Australian GP was wet: many stints
 
@@ -103,8 +132,7 @@ The grid is filed under the qualifying session that set it.
 - **`race_control.qualifying_phase` is entirely null in races** but holds
   1/2/3 in qualifying. With nothing to detect, race files would save it with
   Parquet's `null` type. **Handled at ingest:** it's declared as `Int64` in
-  `COLUMN_TYPES` in `ingest.py`, so it's `int64` in every file. Add any other
-  column like this to that mapping.
+  `SCHEMAS` in `ingest.py`, so it's `int64` in every file.
 - **`race_control.driver_number` and `sector` are mostly null.** They're
   only set for driver- or sector-specific messages (10 of 115 rows have a
   driver in Australia). `lap_number` is always set in races.

@@ -31,6 +31,7 @@ from pathlib import Path
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.parquet as pq
 import requests
 
 # --- Settings -----------------------------------------------------------------
@@ -75,24 +76,114 @@ DELAY_SECONDS = 2.1
 MAX_RETRIES = 5
 FIRST_BACKOFF_SECONDS = 5
 
-# Known column types, applied before anything else so these columns have the
-# same type in every file. Add new entries here as we find them.
-#   "json"  - store as JSON text (for fields whose shape varies by session)
-#   "Int64" - whole numbers, missing values allowed
-#   any other pandas dtype name ("string", "float64", "boolean") also works
-COLUMN_TYPES = {
+# Declared schema for every endpoint: each known column and its type. Applied
+# to every column present when saving, so a column has the same type in every
+# file, even when it's entirely empty in one (which would otherwise save with
+# no type at all). Columns are never added or dropped. A column the API sends
+# that isn't listed here keeps its inferred type, with a printed warning, and
+# should be added here.
+#
+# Built from the types observed in files where each column has values
+# (test sample + schedule, 23 November 2026). Types:
+#   "Int64"   - whole numbers, missing values allowed
+#   "float64" - decimals
+#   "string"  - text (dates are ISO 8601 text, as the API sends them)
+#   "boolean" - true/false, missing values allowed
+#   "list"    - a list per row (e.g. mini-sector codes); kept as sent
+#   "json"    - JSON text, for fields whose shape varies by session
+_MEETING_COLUMNS = {
+    "meeting_key": "Int64", "meeting_name": "string", "meeting_official_name": "string",
+    "location": "string", "country_key": "Int64", "country_code": "string",
+    "country_name": "string", "country_flag": "string", "circuit_key": "Int64",
+    "circuit_short_name": "string", "circuit_type": "string",
+    "circuit_info_url": "string", "circuit_image": "string", "gmt_offset": "string",
+    "date_start": "string", "date_end": "string", "year": "Int64",
+    "is_cancelled": "boolean",
+}
+SCHEMAS = {
+    "meetings": _MEETING_COLUMNS,
+    "sessions": {
+        "session_key": "Int64", "session_type": "string", "session_name": "string",
+        "date_start": "string", "date_end": "string", "meeting_key": "Int64",
+        "circuit_key": "Int64", "circuit_short_name": "string", "country_key": "Int64",
+        "country_code": "string", "country_name": "string", "location": "string",
+        "gmt_offset": "string", "year": "Int64", "is_cancelled": "boolean",
+    },
+    "drivers": {
+        "meeting_key": "Int64", "session_key": "Int64", "driver_number": "Int64",
+        "broadcast_name": "string", "full_name": "string", "name_acronym": "string",
+        "team_name": "string", "team_colour": "string", "first_name": "string",
+        "last_name": "string", "headshot_url": "string",
+        # Always null so far, so never observed; text per the OpenF1 docs.
+        "country_code": "string",
+    },
+    "laps": {
+        "meeting_key": "Int64", "session_key": "Int64", "driver_number": "Int64",
+        "lap_number": "Int64", "date_start": "string",
+        "duration_sector_1": "float64", "duration_sector_2": "float64",
+        "duration_sector_3": "float64", "i1_speed": "Int64", "i2_speed": "Int64",
+        "is_pit_out_lap": "boolean", "lap_duration": "float64",
+        "segments_sector_1": "list", "segments_sector_2": "list",
+        "segments_sector_3": "list", "st_speed": "Int64",
+    },
+    "stints": {
+        "meeting_key": "Int64", "session_key": "Int64", "stint_number": "Int64",
+        "driver_number": "Int64", "lap_start": "Int64", "lap_end": "Int64",
+        "compound": "string", "tyre_age_at_start": "Int64",
+    },
     "session_result": {
+        "position": "Int64", "driver_number": "Int64", "number_of_laps": "Int64",
+        "points": "float64",          # races only
+        "dnf": "boolean", "dns": "boolean", "dsq": "boolean",
         # A number in races ("12.4"), text for lapped cars ("+1 LAP"), and a
         # [Q1, Q2, Q3] list in qualifying.
-        "duration": "json",
-        "gap_to_leader": "json",
+        "duration": "json", "gap_to_leader": "json",
+        "meeting_key": "Int64", "session_key": "Int64",
+    },
+    "pit": {
+        "date": "string", "session_key": "Int64", "meeting_key": "Int64",
+        "driver_number": "Int64", "lap_number": "Int64",
+        "lane_duration": "float64",
+        "stop_duration": "float64",   # empty in qualifying and before late 2024
+        "pit_duration": "float64",    # deprecated duplicate of lane_duration
+    },
+    "position": {
+        "date": "string", "session_key": "Int64", "meeting_key": "Int64",
+        "driver_number": "Int64", "position": "Int64",
     },
     "race_control": {
-        # 1/2/3 in qualifying, but null in every row for other sessions, which
-        # would otherwise save with no type at all.
-        "qualifying_phase": "Int64",
+        "meeting_key": "Int64", "session_key": "Int64", "date": "string",
+        "driver_number": "Int64",     # empty in qualifying so far
+        "lap_number": "Int64",        # races only
+        "category": "string", "flag": "string", "scope": "string",
+        "sector": "Int64",
+        "qualifying_phase": "Int64",  # qualifying only
+        "message": "string",
+    },
+    "weather": {
+        "date": "string", "session_key": "Int64", "meeting_key": "Int64",
+        "air_temperature": "float64", "track_temperature": "float64",
+        "humidity": "float64", "pressure": "float64",
+        "rainfall": "Int64",          # 0/1, not true/false
+        "wind_direction": "Int64", "wind_speed": "float64",
+    },
+    "starting_grid": {
+        "position": "Int64", "driver_number": "Int64", "lap_duration": "float64",
+        "meeting_key": "Int64", "session_key": "Int64",
+    },
+    "team_radio": {
+        "meeting_key": "Int64", "session_key": "Int64", "driver_number": "Int64",
+        "date": "string", "recording_url": "string",
+    },
+    "overtakes": {
+        "meeting_key": "Int64", "session_key": "Int64",
+        "overtaking_driver_number": "Int64", "overtaken_driver_number": "Int64",
+        "date": "string", "position": "Int64",
     },
 }
+
+# Undeclared columns already warned about in this run (warn once each).
+_warned_columns = set()
 
 # data/raw lives at the repo root, one level above this pipeline/ folder,
 # so the script works no matter which folder you run it from.
@@ -131,6 +222,10 @@ def parse_args():
     parser.add_argument("--dry-run", action="store_true",
                         help="don't contact the API; use the saved schedule to list "
                              "the requests this run would make, with a time estimate")
+    parser.add_argument("--resave-local", action="store_true",
+                        help="don't contact the API; re-apply the declared schemas to raw "
+                             "files already on disk and save them back (honours --year "
+                             "and --session-keys)")
     return parser.parse_args()
 
 
@@ -308,54 +403,116 @@ def find_whole_number_columns(records):
     return [col for col, ok in all_ints.items() if ok]
 
 
-def make_parquet_safe(df, endpoint, whole_number_cols):
-    """Make sure every column can be saved to Parquet, without losing values.
+def infer_type(series, endpoint, col, is_whole_number):
+    """Type for a column that isn't in the declared schema (the old behaviour).
 
-    1. Columns listed in COLUMN_TYPES for this endpoint get that type, so
-       their type is the same in every file.
-    2. Whole-number columns use pandas' nullable Int64 type. Plain pandas turns
-       an int column into decimals as soon as one value is missing (e.g.
-       number_of_laps for a disqualified driver); Int64 keeps it whole.
-    3. Any other column is kept as-is if Parquet accepts it. If Parquet rejects
-       it (e.g. mixed numbers and text, or lists with mixed items), it's
-       stored as JSON text instead.
+    Whole-number columns become Int64. Anything else is kept as-is if Parquet
+    accepts it, or stored as JSON text if Parquet rejects it (e.g. mixed
+    numbers and text, or lists with mixed items).
     """
-    known_types = COLUMN_TYPES.get(endpoint, {})
+    if is_whole_number:
+        return series.astype("Int64")
+    try:
+        pa.array(series, from_pandas=True)   # can Parquet store it as it is?
+        return series
+    except (pa.ArrowInvalid, pa.ArrowTypeError):
+        print(f"  note: {endpoint}.{col} has mixed types; storing as JSON text")
+        return to_json_text(series)
 
+
+def cast_column(series, declared, already_json=False):
+    """Convert one column to its declared type (see SCHEMAS)."""
+    if declared == "json":
+        # Files saved earlier already hold JSON text; don't encode it twice.
+        return series.astype("string") if already_json else to_json_text(series)
+    if declared == "list":
+        return series                         # lists are kept exactly as sent
+    return series.astype(declared)
+
+
+def apply_schema(df, endpoint, whole_number_cols=(), json_text_cols=()):
+    """Give every column present its declared type, without losing values.
+
+    - Declared columns get their SCHEMAS type, so a column's type is the same
+      in every file, even where it's entirely empty.
+    - Columns are never added or dropped.
+    - An undeclared column keeps its inferred type, with a warning naming the
+      endpoint and column (once per run), so it can be added to SCHEMAS.
+    - If a value can't be converted to the declared type (the API changed
+      something), the column keeps its inferred type, with a warning.
+
+    whole_number_cols: columns whose raw API values are all integers.
+    json_text_cols: columns that already hold JSON text (when re-saving files).
+    """
+    schema = SCHEMAS.get(endpoint, {})
     for col in df.columns:
-        if col in known_types:
-            if known_types[col] == "json":
-                df[col] = to_json_text(df[col])
-            else:
-                df[col] = df[col].astype(known_types[col])
+        declared = schema.get(col)
+        if declared is None:
+            if (endpoint, col) not in _warned_columns:
+                _warned_columns.add((endpoint, col))
+                print(f"  WARNING: {endpoint}.{col} is not in the declared schema; "
+                      "keeping its inferred type (add it to SCHEMAS in ingest.py)")
+            df[col] = infer_type(df[col], endpoint, col, col in whole_number_cols)
             continue
-
-        if col in whole_number_cols:
-            df[col] = df[col].astype("Int64")
-            continue
-
-        # Ask pyarrow (the Parquet library) whether it can convert this column.
         try:
-            pa.array(df[col], from_pandas=True)
-        except (pa.ArrowInvalid, pa.ArrowTypeError):
-            print(f"  note: {endpoint}.{col} has mixed types; storing as JSON text")
-            df[col] = to_json_text(df[col])
-
+            df[col] = cast_column(df[col], declared, col in json_text_cols)
+        except (TypeError, ValueError) as error:
+            print(f"  WARNING: {endpoint}.{col} couldn't be converted to {declared} "
+                  f"({error}); keeping its inferred type")
+            df[col] = infer_type(df[col], endpoint, col, col in whole_number_cols)
     return df
 
 
-def save_parquet(records, endpoint, out_path):
-    """Turn a list of JSON records into a DataFrame and write it as Parquet.
-
-    Every field the API returns becomes a column; nothing is dropped or renamed.
-    Prints one line with the row count.
-    """
-    whole_number_cols = find_whole_number_columns(records)
-    df = make_parquet_safe(pd.DataFrame(records), endpoint, whole_number_cols)
+def write_parquet(df, out_path):
+    """Write a DataFrame to Parquet and print one line with the row count."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out_path, index=False)
     STATS["files_saved"] += 1
     print(f"Saved {out_path.relative_to(REPO_ROOT)} ({len(df)} rows)")
+
+
+def save_parquet(records, endpoint, out_path):
+    """Turn a list of API records into a DataFrame and write it as Parquet.
+
+    Every field the API returns becomes a column; nothing is dropped or renamed.
+    """
+    whole_number_cols = find_whole_number_columns(records)
+    write_parquet(apply_schema(pd.DataFrame(records), endpoint, whole_number_cols), out_path)
+
+
+# --- Re-save existing files (no API) ------------------------------------------
+
+def resave_local(years, session_keys=None):
+    """Re-apply the declared schemas to raw files already on disk.
+
+    Reads each file under data/raw/<endpoint>/year=YYYY/ for the chosen years,
+    applies SCHEMAS, and writes it back in place. Contacts no API.
+    With session_keys, only those sessions' per-session files are re-saved
+    (meetings and sessions files are skipped).
+    """
+    for endpoint in SCHEDULE_ENDPOINTS + SESSION_ENDPOINTS:
+        if session_keys and endpoint in SCHEDULE_ENDPOINTS:
+            continue
+        for year in years:
+            for path in sorted((RAW_DIR / endpoint / f"year={year}").glob("*.parquet")):
+                if session_keys and path.stem.removeprefix("session_") not in map(str, session_keys):
+                    continue
+                # ParquetFile reads exactly this file (no year column added
+                # from the folder name, unlike dataset-style readers).
+                table = pq.ParquetFile(path).read()
+                json_text_cols = {f.name for f in table.schema if pa.types.is_string(f.type)
+                                  or pa.types.is_large_string(f.type)}
+                df = table.to_pandas()
+                # pandas turns a list column into numpy arrays, and a list
+                # with a missing item into decimals (2048 -> 2048.0). Take
+                # list columns straight from the file as plain Python lists,
+                # so they're written back exactly as they were.
+                for f in table.schema:
+                    if pa.types.is_list(f.type) or pa.types.is_large_list(f.type):
+                        df[f.name] = pd.Series(table.column(f.name).to_pylist(),
+                                               index=df.index, dtype=object)
+                df = apply_schema(df, endpoint, json_text_cols=json_text_cols)
+                write_parquet(df, path)
 
 
 # --- Step 1: schedule (meetings and sessions) ---------------------------------
@@ -523,6 +680,12 @@ def main():
     if args.dry_run:
         sessions = load_sessions(years, args.session_name, args.session_keys, args.limit)
         print_dry_run(sessions, args.endpoints, years, args.skip_schedule)
+        return
+
+    # Re-save local files with the declared schemas, request nothing.
+    if args.resave_local:
+        resave_local(years, args.session_keys)
+        print_summary()
         return
 
     # The summary prints even if the run stops early on an error.
