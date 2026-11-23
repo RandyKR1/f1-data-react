@@ -72,3 +72,84 @@ dry race has about 40-70 stints (2-3 per driver) and 1,000-1,400 laps.
 
 - Don't treat high stint counts or low lap counts as errors without checking
   the race first.
+- The same race has 82 `pit` rows: 17 drivers, up to 5 stops for one driver.
+  `weather.rainfall` is 1 in 58 of its 178 rows.
+
+## `starting_grid` uses the qualifying session's key, not the race's
+
+The grid is filed under the qualifying session that set it.
+`starting_grid?session_key=<race key>` returns 404 (no results).
+
+- 2025 Australian GP: race 9693, grid under 9689 (Qualifying).
+- 2025 Chinese GP (Sprint weekend) has two grids: 9989 (Sprint Qualifying,
+  the Sprint grid) and 9994 (Qualifying, the Grand Prix grid).
+- To get a race's grid, join on `meeting_key` and the matching qualifying
+  session, not on the race's `session_key`.
+- Drivers who set no qualifying time still get a grid row, with
+  `lap_duration` null (Bearman, #87, P20 in Australia 2025).
+- **Handled at ingest:** ingest requests every endpoint for every session,
+  so `starting_grid` returns 404 for practice and race sessions. The same is
+  expected for `overtakes` outside races ("only available during races" per
+  the docs) and for `team_radio` where F1 released none. A 404 now means "no
+  data": no file is saved, and the result is logged to `data/raw/_no_data.csv`
+  (logged_at, endpoint, session_key, session_name, year).
+
+## Endpoints with per-file quirks (seen in 2025 Australia and China races)
+
+- **Column order varies between files.** `pit`, `position`, and `weather`
+  have the same columns and types in both races but in a different order
+  (it follows the API's JSON key order). Harmless; always select columns
+  by name, and read with `union_by_name=true`.
+- **`race_control.qualifying_phase` is entirely null in races** but holds
+  1/2/3 in qualifying. With nothing to detect, race files would save it with
+  Parquet's `null` type. **Handled at ingest:** it's declared as `Int64` in
+  `COLUMN_TYPES` in `ingest.py`, so it's `int64` in every file. Add any other
+  column like this to that mapping.
+- **`race_control.driver_number` and `sector` are mostly null.** They're
+  only set for driver- or sector-specific messages (10 of 115 rows have a
+  driver in Australia). `lap_number` is always set in races.
+- **`weather` and `position` start before the race.** Both begin about an hour
+  before the scheduled start (for example 03:07 UTC for a 04:00 UTC race) and
+  run past the scheduled end. `weather` is about one row per minute over that
+  whole window (178 rows in Australia), not just race time.
+- **`position` holds changes only, not snapshots.** It has 335 rows (Australia)
+  and 461 (China): one row each time a driver's position changes, plus the
+  starting order.
+- **`weather.rainfall` is 0/1 (`int64`), not true/false.**
+- **`pit.stop_duration` can be missing.** In Australia only 34 of 82 pit rows
+  have it. China has 24 of 25. The docs say it's "available from the 2024 US
+  Grand Prix onwards". `lane_duration` is always present.
+  **Use `lane_duration` rather than `stop_duration` for pit analysis.** It's
+  present for every stop in both races checked so far. Per the docs,
+  `stop_duration` doesn't exist before the 2024 US GP, so it can't cover
+  2023-2024 at all. Re-check `lane_duration` coverage once all years are
+  downloaded.
+- **`pit.pit_duration` is deprecated.** It's the same as `lane_duration`, and
+  the docs say it will be removed at the end of the 2026 season. Use
+  `lane_duration`.
+- **`overtakes` overstates on-track passes.** Per the docs it includes
+  "position changes resulting from pit stops or post-race penalties"
+  (172 rows in Australia, 221 in China). **Filter these out before any
+  overtake analysis.** For example, drop overtakes where either driver has a
+  `pit` row around that time, or that happen after the chequered flag in
+  `race_control`.
+- **`team_radio` is a sample, not the full record.** It has 20 clips
+  (Australia) and 44 (China). The docs say coverage "decreased significantly
+  starting in 2026, with most events providing no radio data at all".
+
+## API rate limits (free tier)
+
+OpenF1's free tier allows **3 requests per second and 30 requests per
+minute**. The per-minute limit is the one that matters for bulk downloads.
+
+- `ingest.py` waits **2.1 s between requests** (about 28.5 per minute).
+- On **HTTP 429** it waits and retries up to 5 times. It uses the `Retry-After`
+  header if one is sent, otherwise waits 5 s, then 10, 20, 40, 80. If all 5
+  retries are rate limited, the script stops with a clear message.
+- Every 429 is logged to `data/raw/_rate_limit_log.csv` (logged_at, url,
+  attempt).
+- At 2.1 s per request, a full run is slow. There are about 495 sessions in
+  2023-2026, and 11 per-session endpoints each, so about 5,400 requests:
+  roughly 3 hours. Use `--year` and `--endpoints` to split the work.
+- OpenF1 is also unavailable during live F1 sessions; avoid running ingest
+  then.
