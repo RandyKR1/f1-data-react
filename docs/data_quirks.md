@@ -266,7 +266,19 @@ and just one SC/VSC period.
   `drivers` (or `starting_grid`) as the list of a session's drivers and
   left-join results onto it**, never the other way round.
   `validate_raw.py`'s driver-count check only counts `drivers`, so it didn't
-  flag this.
+  flag this at first.
+  - **Now checked:** `validate_raw.py`'s "Results coverage" check WARNs
+    (not FAILs, since the API isn't consistent) for every driver in a
+    session's `drivers` file with no `session_result` row. For each one it
+    shows whether they have a `starting_grid` row (`has_grid_row`) and
+    whether another `session_result` row from the same meeting marks them
+    `dns` (`dns_elsewhere`). On the 10-session sample it flags only Stroll
+    and Bearman in 11365 (both with grid rows, neither dns elsewhere).
+  - **Step 3 (data model) needs a complete results table** built from
+    `drivers`, `starting_grid` and `session_result`: one row per driver per
+    session, starting from `drivers`, with grid and result columns
+    left-joined on. That way drivers who set no time still appear (with a
+    null result and their grid slot), whichever way the API recorded them.
 - **2026 has 22 drivers and 11 teams** (Cadillac joined). `drivers`,
   `session_result`, and `starting_grid` have 22 rows per session in 2026 and
   20 in 2023-2025. Base driver-count checks on the season, not a fixed 20.

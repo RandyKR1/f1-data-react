@@ -76,7 +76,7 @@ TRACK_TEMP_RANGE = (0, 70)          # °C
 
 CHECK_ORDER = ["Inventory", "Schema consistency", "Key columns", "Duplicates",
                "Empty columns", "Value ranges", "Driver counts", "Cross-file links",
-               "Stint logic"]
+               "Results coverage", "Stint logic"]
 
 
 # --- Collecting issues --------------------------------------------------------
@@ -477,7 +477,53 @@ def check_cross_file_links(con, endpoints):
                    examples=group.drop(columns=["file_session_key"]))
 
 
-# --- Check 9: stint logic -----------------------------------------------------
+# --- Check 9: results coverage ------------------------------------------------
+
+def check_results_coverage(con, endpoints):
+    """Every driver in a session's drivers file should have a session_result row.
+
+    Only a WARN: the API isn't consistent here. Drivers who set no qualifying
+    time are sometimes given a row with dns = true (Melbourne 2025) and
+    sometimes left out entirely (Madrid 2026). See docs/data_quirks.md.
+
+    For each missing driver it also reports:
+      has_grid_row   - a starting_grid row in the same session
+      dns_elsewhere  - another session_result row from the same meeting marks
+                       them dns (driver numbers are only joined within a
+                       meeting, never across weekends)
+    """
+    has_grid = "starting_grid" in endpoints
+    grid_sql = """EXISTS (SELECT 1 FROM starting_grid g
+                          WHERE g.file_session_key = d.file_session_key
+                            AND g.driver_number = d.driver_number)""" if has_grid else "NULL"
+    df = query(con, f"""
+        WITH result_sessions AS (SELECT DISTINCT file_session_key FROM session_result),
+        missing AS (
+            SELECT d.file_session_key, d.driver_number, d.name_acronym,
+                   {grid_sql} AS has_grid_row
+            FROM drivers d
+            WHERE d.file_session_key IN (SELECT file_session_key FROM result_sessions)
+              AND NOT EXISTS (SELECT 1 FROM session_result r
+                              WHERE r.file_session_key = d.file_session_key
+                                AND r.driver_number = d.driver_number))
+        SELECT m.*,
+               EXISTS (SELECT 1 FROM session_result r
+                       JOIN sel_sessions rs ON rs.session_key = r.file_session_key
+                       JOIN sel_sessions ms ON ms.session_key = m.file_session_key
+                       WHERE rs.meeting_key = ms.meeting_key
+                         AND r.file_session_key <> m.file_session_key
+                         AND r.driver_number = m.driver_number
+                         AND r.dns) AS dns_elsewhere
+        FROM missing m ORDER BY 1, 2""")
+    for key, group in df.groupby("file_session_key"):
+        drivers = ", ".join(f"#{r.driver_number} {r.name_acronym}" for r in group.itertuples())
+        report("Results coverage", "WARN", "session_result",
+               f"{len(group)} driver(s) in drivers but with no session_result row: {drivers}",
+               count=len(group), session_key=key,
+               examples=group.drop(columns=["file_session_key"]))
+
+
+# --- Check 10: stint logic -----------------------------------------------------
 
 def check_stint_logic(con):
     """lap_end >= lap_start, and a driver's stints don't overlap."""
@@ -610,6 +656,8 @@ def main():
     if "drivers" in endpoints:
         check_driver_counts(con)
         check_cross_file_links(con, endpoints)
+        if "session_result" in endpoints:
+            check_results_coverage(con, endpoints)
     if "stints" in endpoints:
         check_stint_logic(con)
 

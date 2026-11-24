@@ -1,6 +1,6 @@
 # Raw data validation report
 
-Generated 2026-11-24 01:42 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
+Generated 2026-11-24 01:57 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
 
 Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361, 11365, 11369]`. Sessions checked: 10. Expected files: 100, present: 98.
 
@@ -16,6 +16,7 @@ Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361, 1136
 | Value ranges | 0 | 10 | 0 |
 | Driver counts | 0 | 0 | 0 |
 | Cross-file links | 0 | 0 | 0 |
+| Results coverage | 0 | 1 | 0 |
 | Stint logic | 1 | 0 | 0 |
 
 Empty columns already documented in `docs/data_quirks.md` (not reported again): `drivers.country_code` in 10 file(s) (always null so far), `race_control.qualifying_phase` in 5 file(s) (null outside qualifying).
@@ -179,6 +180,18 @@ No issues.
 ## Cross-file links
 
 No issues.
+
+## Results coverage
+
+- **WARN** `session_result` session 11365 (2026 Madrid Qualifying): 2 driver(s) in drivers but with no session_result row: #18 STR, #87 BEA (2 row(s))
+
+  Examples (up to 5):
+
+  | driver_number | name_acronym | has_grid_row | dns_elsewhere |
+  |---|---|---|---|
+  | 18 | STR | True | False |
+  | 87 | BEA | True | False |
+
 
 ## Stint logic
 
