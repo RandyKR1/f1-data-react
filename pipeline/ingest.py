@@ -4,26 +4,39 @@ Download raw OpenF1 data and save it as Parquet files.
 Step 1 - schedule (one file per year):
     data/raw/meetings/year=YYYY/meetings.parquet
     data/raw/sessions/year=YYYY/sessions.parquet
+    The current season (today's UTC year) is always re-downloaded; a past
+    season is downloaded only if its file is missing. --skip-schedule skips both.
 
 Step 2 - per-session data (one file per session, cancelled sessions skipped):
     data/raw/<endpoint>/year=YYYY/session_<session_key>.parquet
     for each endpoint in SESSION_ENDPOINTS (or just those given with --endpoints)
 
 Which endpoints are requested depends on the session (ENDPOINTS_BY_SESSION_NAME);
-sessions not in that map, cancelled sessions, and unfinished sessions are skipped.
+sessions not in that map, cancelled sessions, and sessions that finished less
+than --min-age-hours ago (default 24) are skipped.
+
+Runs are incremental. A session + endpoint is skipped when:
+    - its Parquet file already exists (unless --force, which needs --session-keys)
+    - it's listed in data/raw/_no_data.csv (unless --retry-no-data; a retry that
+      finds data saves it and removes the row from _no_data.csv)
 
 Examples (run from anywhere):
-    python pipeline/ingest.py                              # everything, 2023-2026
+    python pipeline/ingest.py                              # everything new, 2023-2026
     python pipeline/ingest.py --year 2025,2026 \
         --session-name Race,Qualifying                     # GP races + qualifying
     python pipeline/ingest.py --session-keys 9689,9693 \
         --skip-schedule                                    # exact sessions
     python pipeline/ingest.py --year 2025 --dry-run        # plan only, no requests
+    python pipeline/ingest.py --force --session-keys 11420 # re-download one session
+    python pipeline/ingest.py --retry-no-data              # retry logged 404s
 """
 
 import argparse
 import csv
+import hashlib
 import json
+import math
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -75,6 +88,10 @@ DELAY_SECONDS = 2.1
 # Retry-After header if it sends one, otherwise wait 5 s, then 10, 20, 40, 80.
 MAX_RETRIES = 5
 FIRST_BACKOFF_SECONDS = 5
+
+# Only process sessions that ended at least this many hours ago, so OpenF1 has
+# had time to fill in late fields (e.g. pit.stop_duration). --min-age-hours.
+DEFAULT_MIN_AGE_HOURS = 24
 
 # Declared schema for every endpoint: each known column and its type. Applied
 # to every column present when saving, so a column has the same type in every
@@ -195,7 +212,15 @@ NO_DATA_LOG = RAW_DIR / "_no_data.csv"
 RATE_LIMIT_LOG = RAW_DIR / "_rate_limit_log.csv"
 
 # Counters for the end-of-run summary.
-STATS = {"requests": 0, "files_saved": 0, "no_data": 0, "rate_limited": 0}
+STATS = {
+    "requests": 0, "files_saved": 0, "no_data": 0, "rate_limited": 0,
+    "skipped_exists": 0,       # per-session file already saved
+    "skipped_no_data": 0,      # listed in _no_data.csv (no --retry-no-data)
+    "schedule_kept": 0,        # past-season schedule file already saved
+    "retry_found": 0,          # --retry-no-data: data found, row removed
+    "retry_still_none": 0,     # --retry-no-data: still 404
+    "fingerprints_ok": 0,      # --resave-local: values unchanged
+}
 
 
 # --- Command-line options -----------------------------------------------------
@@ -225,8 +250,21 @@ def parse_args():
     parser.add_argument("--resave-local", action="store_true",
                         help="don't contact the API; re-apply the declared schemas to raw "
                              "files already on disk and save them back (honours --year "
-                             "and --session-keys)")
-    return parser.parse_args()
+                             "and --session-keys); stops if any file's values would change")
+    parser.add_argument("--min-age-hours", type=float, default=DEFAULT_MIN_AGE_HOURS,
+                        help="only process sessions that ended at least this many hours "
+                             f"ago (default: {DEFAULT_MIN_AGE_HOURS})")
+    parser.add_argument("--retry-no-data", action="store_true",
+                        help="re-request session + endpoint pairs listed in _no_data.csv "
+                             "(found data is saved and its row removed)")
+    parser.add_argument("--force", action="store_true",
+                        help="re-download the selected sessions even if their files exist "
+                             "(requires --session-keys)")
+    args = parser.parse_args()
+    # Guard against an accidental full re-download (thousands of requests).
+    if args.force and not args.session_keys:
+        parser.error("--force must be combined with --session-keys")
+    return args
 
 
 def parse_text_list(text):
@@ -294,6 +332,33 @@ def log_no_data(endpoint, session_key="", session_name="", year=""):
         "year": year,
     })
     print(f"No data for {endpoint} (session {session_key or '-'}, year {year})")
+
+
+def load_no_data_pairs():
+    """The (endpoint, session_key) pairs logged in _no_data.csv as 404 / no data.
+
+    Schedule rows (no session_key) are left out.
+    """
+    if not NO_DATA_LOG.exists():
+        return set()
+    log = pd.read_csv(NO_DATA_LOG)
+    log = log[pd.to_numeric(log["session_key"], errors="coerce").notna()]
+    return set(zip(log["endpoint"], log["session_key"].astype(int)))
+
+
+def remove_no_data_rows(endpoint, session_key):
+    """Delete every _no_data.csv row for this endpoint + session (data was found)."""
+    with NO_DATA_LOG.open(newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        keep = [row for row in reader
+                if not (row["endpoint"] == endpoint and row["session_key"] == str(session_key))]
+    with NO_DATA_LOG.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(keep)
+    print(f"  removed {endpoint} / session {session_key} from "
+          f"{NO_DATA_LOG.relative_to(REPO_ROOT)}")
 
 
 # --- HTTP ---------------------------------------------------------------------
@@ -480,73 +545,168 @@ def save_parquet(records, endpoint, out_path):
     write_parquet(apply_schema(pd.DataFrame(records), endpoint, whole_number_cols), out_path)
 
 
-# --- Re-save existing files (no API) ------------------------------------------
+# --- Re-save existing files (no API), with a fingerprint guard ---------------
+
+def canonical(value):
+    """A value in a form that ignores how it's stored but not what it is.
+
+    Re-saving may change a column's storage type (e.g. double -> Int64), so a
+    whole-number float counts the same as the int (2048.0 == 2048). Anything
+    else that differs (text vs number, true vs 1, a changed digit, a null
+    appearing or vanishing) changes the fingerprint.
+    """
+    if isinstance(value, float):
+        if math.isnan(value):
+            return "NaN"
+        return int(value) if value.is_integer() else value
+    if isinstance(value, (list, tuple)):
+        return [canonical(v) for v in value]
+    if isinstance(value, dict):
+        return {k: canonical(v) for k, v in value.items()}
+    return value                      # None, bool, int, str
+
+
+def fingerprint(path):
+    """{column: hash of its values in row order} for one Parquet file, plus the
+    row count under "(rows)". Column order doesn't matter; row order does."""
+    table = pq.ParquetFile(path).read()
+    result = {"(rows)": table.num_rows}
+    for name in table.column_names:
+        values = [canonical(v) for v in table.column(name).to_pylist()]
+        text = json.dumps(values, default=str)
+        result[name] = hashlib.sha256(text.encode()).hexdigest()
+    return result
+
+
+def read_for_resave(path):
+    """Read one raw file into a DataFrame with the declared schema applied."""
+    # ParquetFile reads exactly this file (no year column added from the
+    # folder name, unlike dataset-style readers).
+    table = pq.ParquetFile(path).read()
+    json_text_cols = {f.name for f in table.schema if pa.types.is_string(f.type)
+                      or pa.types.is_large_string(f.type)}
+    df = table.to_pandas()
+    # pandas turns a list column into numpy arrays, and a list with a missing
+    # item into decimals (2048 -> 2048.0). Take list columns straight from the
+    # file as plain Python lists, so they're written back exactly as they were.
+    for f in table.schema:
+        if pa.types.is_list(f.type) or pa.types.is_large_list(f.type):
+            df[f.name] = pd.Series(table.column(f.name).to_pylist(),
+                                   index=df.index, dtype=object)
+    endpoint = path.parent.parent.name
+    return apply_schema(df, endpoint, json_text_cols=json_text_cols)
+
+
+def resave_one(path):
+    """Re-save one file with the declared schema, only if its values don't change.
+
+    Writes to a temporary file next to it, fingerprints both, and replaces the
+    original only if they match. Otherwise deletes the temporary file, leaves
+    the original untouched, and stops the script naming the file and columns.
+    """
+    before = fingerprint(path)
+    df = read_for_resave(path)
+    tmp = path.with_name(path.name + ".tmp")
+    df.to_parquet(tmp, index=False)
+    after = fingerprint(tmp)
+
+    changed = sorted(c for c in before.keys() | after.keys() if before.get(c) != after.get(c))
+    if changed:
+        tmp.unlink()
+        sys.exit(f"Stopping: re-saving {path.relative_to(REPO_ROOT)} would change its values "
+                 f"(column(s): {', '.join(changed)}). That file was left unchanged; files "
+                 "re-saved before it passed the same check.")
+
+    os.replace(tmp, path)             # atomic swap: never a half-written file
+    STATS["files_saved"] += 1
+    STATS["fingerprints_ok"] += 1
+    print(f"Re-saved {path.relative_to(REPO_ROOT)} ({len(df)} rows, values unchanged)")
+
 
 def resave_local(years, session_keys=None):
     """Re-apply the declared schemas to raw files already on disk.
 
     Reads each file under data/raw/<endpoint>/year=YYYY/ for the chosen years,
-    applies SCHEMAS, and writes it back in place. Contacts no API.
+    applies SCHEMAS, and writes it back in place if a fingerprint of its values
+    is unchanged (see resave_one). Contacts no API.
     With session_keys, only those sessions' per-session files are re-saved
     (meetings and sessions files are skipped).
     """
+    wanted = {f"session_{k}" for k in session_keys or []}
     for endpoint in SCHEDULE_ENDPOINTS + SESSION_ENDPOINTS:
         if session_keys and endpoint in SCHEDULE_ENDPOINTS:
             continue
         for year in years:
             for path in sorted((RAW_DIR / endpoint / f"year={year}").glob("*.parquet")):
-                if session_keys and path.stem.removeprefix("session_") not in map(str, session_keys):
+                if session_keys and path.stem not in wanted:
                     continue
-                # ParquetFile reads exactly this file (no year column added
-                # from the folder name, unlike dataset-style readers).
-                table = pq.ParquetFile(path).read()
-                json_text_cols = {f.name for f in table.schema if pa.types.is_string(f.type)
-                                  or pa.types.is_large_string(f.type)}
-                df = table.to_pandas()
-                # pandas turns a list column into numpy arrays, and a list
-                # with a missing item into decimals (2048 -> 2048.0). Take
-                # list columns straight from the file as plain Python lists,
-                # so they're written back exactly as they were.
-                for f in table.schema:
-                    if pa.types.is_list(f.type) or pa.types.is_large_list(f.type):
-                        df[f.name] = pd.Series(table.column(f.name).to_pylist(),
-                                               index=df.index, dtype=object)
-                df = apply_schema(df, endpoint, json_text_cols=json_text_cols)
-                write_parquet(df, path)
+                resave_one(path)
 
 
 # --- Step 1: schedule (meetings and sessions) ---------------------------------
 
-def download_schedule(years):
-    """Download meetings and sessions for each year, one file per year."""
+def schedule_file(endpoint, year):
+    """Where one season's meetings or sessions file is saved. The Hive-style
+    folder name (year=YYYY) lets DuckDB read the year back out of the path."""
+    return RAW_DIR / endpoint / f"year={year}" / f"{endpoint}.parquet"
+
+
+def plan_schedule(years, skip_schedule):
+    """Decide, for each year and schedule endpoint, whether to download it.
+
+    Returns a list of (year, endpoint, action), where action is:
+      "fetch"        - download it
+      "skip_saved"   - past season whose file already exists
+      "skip_flag"    - --skip-schedule was given
+    The current season (today's UTC year) is always re-downloaded, because
+    its sessions and cancellations keep changing.
+    """
+    current_year = datetime.now(timezone.utc).year
+    plan = []
     for year in years:
         for endpoint in SCHEDULE_ENDPOINTS:
-            records = fetch_json(endpoint, {"year": year})
-            if records is None:               # 404: nothing for this year
-                log_no_data(endpoint, year=year)
-                continue
-            # Hive-style folder name (year=YYYY) so DuckDB can read the year
-            # back out of the path later.
-            out_path = RAW_DIR / endpoint / f"year={year}" / f"{endpoint}.parquet"
-            save_parquet(records, endpoint, out_path)
+            if skip_schedule:
+                action = "skip_flag"
+            elif year < current_year and schedule_file(endpoint, year).exists():
+                action = "skip_saved"
+            else:
+                action = "fetch"
+            plan.append((year, endpoint, action))
+    return plan
+
+
+def download_schedule(plan):
+    """Download the schedule files the plan marks "fetch"."""
+    for year, endpoint, action in plan:
+        if action == "skip_saved":
+            STATS["schedule_kept"] += 1
+            print(f"Keeping saved {endpoint} for {year} (past season)")
+            continue
+        if action != "fetch":
+            continue
+        records = fetch_json(endpoint, {"year": year})
+        if records is None:               # 404: nothing for this year
+            log_no_data(endpoint, year=year)
+            continue
+        save_parquet(records, endpoint, schedule_file(endpoint, year))
 
 
 # --- Step 2: pick which sessions to process -----------------------------------
 
-def load_sessions(years, session_names=None, session_keys=None, limit=None):
+def load_sessions(years, session_names=None, session_keys=None, limit=None,
+                  min_age_hours=DEFAULT_MIN_AGE_HOURS):
     """Read the saved session files and return the sessions to process.
 
     Applied in this order:
       1. skip cancelled sessions
-      2. skip sessions that haven't finished yet (date_end in the future)
+      2. skip sessions that ended less than min_age_hours ago (or haven't ended)
       3. keep only the given session_keys / session_names, if any were given
       4. skip sessions with no entry in ENDPOINTS_BY_SESSION_NAME (with a note)
       5. sort by start time and keep the first `limit`, if given
     """
     frames = []
     for year in years:
-        path = RAW_DIR / "sessions" / f"year={year}" / "sessions.parquet"
-        frames.append(pd.read_parquet(path))
+        frames.append(pd.read_parquet(schedule_file("sessions", year)))
     sessions = pd.concat(frames, ignore_index=True)
 
     # 1. Cancelled. fillna(False) treats a missing flag as "not cancelled".
@@ -554,18 +714,20 @@ def load_sessions(years, session_names=None, session_keys=None, limit=None):
     print(f"Skipping {cancelled.sum()} cancelled session(s)")
     sessions = sessions[~cancelled]
 
-    # 2. Not finished yet. A missing date_end counts as not finished.
+    # 2. Too recent. A missing date_end counts as not finished (NaT compares False).
     date_end = pd.to_datetime(sessions["date_end"], utc=True)
-    finished = date_end <= pd.Timestamp.now(tz="UTC")
-    print(f"Skipping {(~finished).sum()} session(s) that haven't finished yet")
-    sessions = sessions[finished]
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=min_age_hours)
+    old_enough = date_end <= cutoff
+    print(f"Skipping {(~old_enough).sum()} session(s) that ended less than "
+          f"{min_age_hours:g} h ago or haven't ended")
+    sessions = sessions[old_enough]
 
     # 3. Explicit filters.
     if session_keys:
         missing = sorted(set(session_keys) - set(sessions["session_key"]))
         if missing:
-            print(f"Note: session_key(s) {missing} not found among finished, "
-                  f"non-cancelled sessions for years {years}")
+            print(f"Note: session_key(s) {missing} not found among non-cancelled sessions "
+                  f"that ended at least {min_age_hours:g} h ago, for years {years}")
         sessions = sessions[sessions["session_key"].isin(session_keys)]
     if session_names:
         sessions = sessions[sessions["session_name"].isin(session_names)]
@@ -592,24 +754,76 @@ def endpoints_for(session_name, chosen_endpoints):
     return [e for e in ENDPOINTS_BY_SESSION_NAME[session_name] if e in chosen_endpoints]
 
 
+def session_file(endpoint, year, session_key):
+    """Where one endpoint's data for one session is saved."""
+    return RAW_DIR / endpoint / f"year={year}" / f"session_{session_key}.parquet"
+
+
+def plan_session_requests(sessions, chosen_endpoints, force=False, retry_no_data=False):
+    """Decide, for each session and endpoint, whether to request it.
+
+    Returns a list of dicts (session, endpoint, path, action), where action is:
+      "fetch"          - not saved yet (or --force), so request it
+      "retry"          - listed in _no_data.csv, re-requested (--retry-no-data)
+      "skip_exists"    - its file already exists
+      "skip_no_data"   - listed in _no_data.csv
+    A real run and --dry-run both use this, so the dry run shows exactly what
+    a real run would do.
+    """
+    no_data = load_no_data_pairs()
+    plan = []
+    for session in sessions.itertuples():
+        for endpoint in endpoints_for(session.session_name, chosen_endpoints):
+            path = session_file(endpoint, session.year, session.session_key)
+            if path.exists():
+                action = "fetch" if force else "skip_exists"
+            elif (endpoint, session.session_key) in no_data:
+                action = "retry" if retry_no_data else "skip_no_data"
+            else:
+                action = "fetch"
+            plan.append({"session": session, "endpoint": endpoint,
+                         "path": path, "action": action})
+    return plan
+
+
 # --- Step 3: per-session data (one file per endpoint per session) ------------
 
-def download_session_data(sessions, chosen_endpoints):
-    """For each session, download its mapped endpoints, each to its own file."""
-    for session in sessions.itertuples():
-        print(f"\nSession {session.session_key}: {session.year} "
-              f"{session.location} - {session.session_name}")
+def download_session_data(plan):
+    """Request every planned session + endpoint marked "fetch" or "retry"."""
+    STATS["skipped_exists"] += sum(p["action"] == "skip_exists" for p in plan)
+    STATS["skipped_no_data"] += sum(p["action"] == "skip_no_data" for p in plan)
+    print(f"Skipping {STATS['skipped_exists']} file(s) already saved and "
+          f"{STATS['skipped_no_data']} logged as no data")
+    no_data = load_no_data_pairs()
 
-        for endpoint in endpoints_for(session.session_name, chosen_endpoints):
-            records = fetch_json(endpoint, {"session_key": session.session_key})
-            if records is None:
-                # 404: no data for this session (e.g. starting_grid for a race,
-                # which is filed under the qualifying session instead).
+    current_session = None
+    for item in [p for p in plan if p["action"] in ("fetch", "retry")]:
+        session, endpoint, path = item["session"], item["endpoint"], item["path"]
+        if session.session_key != current_session:   # one header per session
+            current_session = session.session_key
+            print(f"\nSession {session.session_key}: {session.year} "
+                  f"{session.location} - {session.session_name}")
+
+        records = fetch_json(endpoint, {"session_key": session.session_key})
+        if records is None:
+            # 404: no data for this session (e.g. starting_grid for a race,
+            # which is filed under the qualifying session instead).
+            if item["action"] == "retry":
+                # Already listed in _no_data.csv; don't add a duplicate row.
+                STATS["retry_still_none"] += 1
+                print(f"Still no data for {endpoint} (session {session.session_key})")
+            else:
+                if path.exists():
+                    print(f"  note: {endpoint} now returns no data; keeping the existing file")
                 log_no_data(endpoint, session.session_key, session.session_name, session.year)
-                continue
-            out_path = (RAW_DIR / endpoint / f"year={session.year}"
-                        / f"session_{session.session_key}.parquet")
-            save_parquet(records, endpoint, out_path)
+            continue
+
+        save_parquet(records, endpoint, path)
+        if (endpoint, session.session_key) in no_data:
+            # It was logged as no data before, but now there is some.
+            if item["action"] == "retry":
+                STATS["retry_found"] += 1
+            remove_no_data_rows(endpoint, session.session_key)
 
 
 # --- Dry run ------------------------------------------------------------------
@@ -621,9 +835,23 @@ def format_duration(seconds):
     return f"{hours} h {minutes} min" if hours else f"{minutes} min {secs} s"
 
 
-def print_dry_run(sessions, chosen_endpoints, years, skip_schedule):
-    """Print the requests a run would make, without contacting the API."""
+# Column headings for each planned action, in display order.
+ACTION_LABELS = {
+    "fetch": "request",
+    "retry": "retry no-data",
+    "skip_exists": "skip: saved",
+    "skip_no_data": "skip: no data",
+}
+
+
+def print_dry_run(sessions, session_plan, schedule_plan, args):
+    """Print the requests a run would make, and what it would skip and why,
+    without contacting the API."""
     print("\n--- Dry run (no API requests made) ---")
+    flags = [name for name, on in [("--force", args.force),
+                                   ("--retry-no-data", args.retry_no_data)] if on]
+    print(f"Minimum session age: {args.min_age_hours:g} h"
+          + (f"; flags: {' '.join(flags)}" if flags else ""))
 
     # Sessions selected, by year and session name.
     print(f"\nSessions selected: {len(sessions)}")
@@ -632,24 +860,38 @@ def print_dry_run(sessions, chosen_endpoints, years, skip_schedule):
                             margins=True, margins_name="Total")
         print(table.to_string())
 
-    # Requests per endpoint: each session's mapped endpoints, added up.
-    per_endpoint = {e: 0 for e in SESSION_ENDPOINTS}
-    for name in sessions["session_name"]:
-        for endpoint in endpoints_for(name, chosen_endpoints):
-            per_endpoint[endpoint] += 1
-    print("\nRequests per endpoint:")
-    for endpoint, count in per_endpoint.items():
-        if count:
-            print(f"  {endpoint:16} {count}")
+    # Per-session plan: one row per endpoint, one column per action.
+    session_requests = sum(p["action"] in ("fetch", "retry") for p in session_plan)
+    if session_plan:
+        df = pd.DataFrame({"endpoint": [p["endpoint"] for p in session_plan],
+                           "action": [ACTION_LABELS[p["action"]] for p in session_plan]})
+        table = pd.crosstab(df["endpoint"], df["action"], margins=True, margins_name="Total")
+        table = table.reindex(columns=[c for c in [*ACTION_LABELS.values(), "Total"]
+                                       if c in table.columns])
+        table = table.reindex([e for e in [*SESSION_ENDPOINTS, "Total"] if e in table.index])
+        print("\nPer-session endpoints by planned action:")
+        print(table.to_string())
 
-    # Totals and time estimate. A real run also re-downloads meetings and
-    # sessions for each year unless --skip-schedule is given.
-    session_requests = sum(per_endpoint.values())
-    schedule_requests = 0 if skip_schedule else len(SCHEDULE_ENDPOINTS) * len(years)
+    # Schedule plan.
+    schedule_requests = sum(a == "fetch" for _, _, a in schedule_plan)
+    kept = [f"{e} {y}" for y, e, a in schedule_plan if a == "skip_saved"]
+    fetched = [f"{e} {y}" for y, e, a in schedule_plan if a == "fetch"]
+
+    # Totals and time estimate.
     total = session_requests + schedule_requests
-    print(f"\nPer-session requests: {session_requests}")
-    print(f"Schedule requests:    {schedule_requests}"
-          + ("  (--skip-schedule)" if skip_schedule else "  (meetings + sessions per year)"))
+    counts = {a: sum(p["action"] == a for p in session_plan) for a in ACTION_LABELS}
+    print(f"\nPer-session requests: {session_requests}"
+          + (f"  ({counts['retry']} of them retrying no-data)" if counts["retry"] else ""))
+    print(f"  skipped, file already saved:  {counts['skip_exists']}")
+    print(f"  skipped, logged as no data:   {counts['skip_no_data']}"
+          + ("  (use --retry-no-data to retry)" if counts["skip_no_data"] else ""))
+    if args.skip_schedule:
+        print(f"Schedule requests:    0  (--skip-schedule)")
+    else:
+        print(f"Schedule requests:    {schedule_requests}"
+              + (f"  ({', '.join(fetched)})" if fetched else ""))
+        if kept:
+            print(f"  skipped, past season already saved: {len(kept)}  ({', '.join(kept)})")
     print(f"Total requests:       {total}")
     # Requests start DELAY_SECONDS apart (start-to-start), so the run takes
     # about total x DELAY_SECONDS. Only a response slower than DELAY_SECONDS,
@@ -662,7 +904,7 @@ def print_dry_run(sessions, chosen_endpoints, years, skip_schedule):
 # --- Main ---------------------------------------------------------------------
 
 def print_summary():
-    """Print the end-of-run counts."""
+    """Print the end-of-run counts, including what was skipped and why."""
     print("\n--- Run summary ---")
     print(f"Requests:           {STATS['requests']}")
     print(f"Files saved:        {STATS['files_saved']}")
@@ -670,16 +912,32 @@ def print_summary():
           + (f"  (see {NO_DATA_LOG.relative_to(REPO_ROOT)})" if STATS["no_data"] else ""))
     print(f"Rate limited (429): {STATS['rate_limited']}"
           + (f"  (see {RATE_LIMIT_LOG.relative_to(REPO_ROOT)})" if STATS["rate_limited"] else ""))
+    print("Skipped:")
+    print(f"  file already saved:          {STATS['skipped_exists']}")
+    print(f"  logged as no data:           {STATS['skipped_no_data']}")
+    print(f"  past-season schedule saved:  {STATS['schedule_kept']}")
+    if STATS["retry_found"] or STATS["retry_still_none"]:
+        print(f"Retried no-data:    {STATS['retry_found']} found, "
+              f"{STATS['retry_still_none']} still none")
+    if STATS["fingerprints_ok"]:
+        print(f"Fingerprint checks passed: {STATS['fingerprints_ok']}")
 
 
 def main():
     args = parse_args()
     years = args.year
 
+    def select_sessions():
+        return load_sessions(years, args.session_name, args.session_keys, args.limit,
+                             args.min_age_hours)
+
     # Dry run: work everything out from the saved schedule, request nothing.
     if args.dry_run:
-        sessions = load_sessions(years, args.session_name, args.session_keys, args.limit)
-        print_dry_run(sessions, args.endpoints, years, args.skip_schedule)
+        sessions = select_sessions()
+        print_dry_run(sessions,
+                      plan_session_requests(sessions, args.endpoints,
+                                            args.force, args.retry_no_data),
+                      plan_schedule(years, args.skip_schedule), args)
         return
 
     # Re-save local files with the declared schemas, request nothing.
@@ -690,18 +948,18 @@ def main():
 
     # The summary prints even if the run stops early on an error.
     try:
-        # Step 1: refresh the schedule unless told to reuse the saved files.
+        # Step 1: refresh the current season's schedule, and any missing ones.
         if args.skip_schedule:
             print("Skipping schedule download (using saved meetings/sessions files)")
-        else:
-            download_schedule(years)
+        download_schedule(plan_schedule(years, args.skip_schedule))
 
-        # Step 2: decide which sessions to fetch.
-        sessions = load_sessions(years, args.session_name, args.session_keys, args.limit)
+        # Step 2: decide which sessions to fetch, and which files are needed.
+        sessions = select_sessions()
         print(f"Processing {len(sessions)} session(s)")
+        plan = plan_session_requests(sessions, args.endpoints, args.force, args.retry_no_data)
 
-        # Step 3: fetch the chosen per-session endpoints (all of them by default).
-        download_session_data(sessions, args.endpoints)
+        # Step 3: fetch what's missing (all chosen endpoints by default).
+        download_session_data(plan)
     finally:
         print_summary()
 

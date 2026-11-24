@@ -119,26 +119,12 @@ def parse_args():
 
 # --- Setup: which files should exist ------------------------------------------
 
-def session_file(endpoint, year, session_key):
-    """Where ingest.py saves one endpoint for one session."""
-    return ingest.RAW_DIR / endpoint / f"year={year}" / f"session_{session_key}.parquet"
-
-
-def load_no_data_log():
-    """The (endpoint, session_key) pairs ingest.py logged as 404 / no data."""
-    if not ingest.NO_DATA_LOG.exists():
-        return set()
-    log = pd.read_csv(ingest.NO_DATA_LOG)
-    log = log[pd.to_numeric(log["session_key"], errors="coerce").notna()]
-    return set(zip(log["endpoint"], log["session_key"].astype(int)))
-
-
 def expected_files(sessions):
     """Every (endpoint, session) pair ingest.py would request, with its path."""
     rows = []
     for s in sessions.itertuples():
         for endpoint in ingest.endpoints_for(s.session_name, ingest.SESSION_ENDPOINTS):
-            path = session_file(endpoint, s.year, s.session_key)
+            path = ingest.session_file(endpoint, s.year, s.session_key)
             rows.append({"endpoint": endpoint, "session_key": s.session_key,
                          "session_name": s.session_name, "year": s.year,
                          "path": path, "exists": path.exists()})
@@ -647,7 +633,7 @@ def main():
     register_views(con, files)
     endpoints = sorted(files.loc[files["exists"], "endpoint"].unique())
 
-    check_inventory(files, load_no_data_log())
+    check_inventory(files, ingest.load_no_data_pairs())
     check_schemas(con, files)
     check_key_columns(con, files, endpoints)
     check_duplicates(con, endpoints)

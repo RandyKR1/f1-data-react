@@ -182,6 +182,10 @@ minute**. The per-minute limit is the one that matters for bulk downloads.
 - At 2.1 s per request, a full run is slow. There are about 495 sessions in
   2023-2026, and 11 per-session endpoints each, so about 5,400 requests:
   roughly 3 hours. Use `--year` and `--endpoints` to split the work.
+- Ingest is **incremental**: it skips files that already exist and
+  session + endpoint pairs already logged in `_no_data.csv`
+  (`--retry-no-data` re-requests those), so an interrupted run can simply
+  be restarted. `--dry-run` shows what would be requested and skipped.
 - OpenF1 is also unavailable during live F1 sessions; avoid running ingest
   then.
 
@@ -210,8 +214,12 @@ populated within a few hours after the session ends". As of 23 November 2026,
 Las Vegas 2026 (finished 22 November) is the most recent session and may still
 be incomplete.
 
+- **Handled at ingest:** `ingest.py` only processes sessions that ended at
+  least 24 hours ago (`--min-age-hours` to change it).
 - Re-download the most recent weekend a few days after it ends, before
-  treating its data as final.
+  treating its data as final: `python pipeline/ingest.py --force
+  --session-keys <keys>`. Ingest is incremental and otherwise skips files
+  that already exist.
 
 ## Findings from the 10-session test sample (run 23 November 2026)
 
