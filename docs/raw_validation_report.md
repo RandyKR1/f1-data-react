@@ -1,28 +1,29 @@
 # Raw data validation report
 
-Generated 2026-11-23 19:01 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
+Generated 2026-11-24 01:42 UTC by `pipeline/validate_raw.py` (read-only, nothing was changed).
 
-Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361]`. Sessions checked: 8. Expected files: 80, present: 79.
+Filters: `--session-keys [9689, 9693, 9994, 9998, 9935, 9939, 11357, 11361, 11365, 11369]`. Sessions checked: 10. Expected files: 100, present: 98.
 
 ## Summary
 
 | Check | FAIL | WARN | INFO |
 |---|---|---|---|
-| Inventory | 0 | 0 | 1 |
+| Inventory | 0 | 0 | 2 |
 | Schema consistency | 0 | 0 | 0 |
 | Key columns | 0 | 0 | 0 |
 | Duplicates | 0 | 0 | 0 |
-| Empty columns | 0 | 0 | 11 |
-| Value ranges | 0 | 8 | 0 |
+| Empty columns | 0 | 0 | 12 |
+| Value ranges | 0 | 10 | 0 |
 | Driver counts | 0 | 0 | 0 |
 | Cross-file links | 0 | 0 | 0 |
 | Stint logic | 1 | 0 | 0 |
 
-Empty columns already documented in `docs/data_quirks.md` (not reported again): `drivers.country_code` in 8 file(s) (always null so far), `race_control.qualifying_phase` in 4 file(s) (null outside qualifying).
+Empty columns already documented in `docs/data_quirks.md` (not reported again): `drivers.country_code` in 10 file(s) (always null so far), `race_control.qualifying_phase` in 5 file(s) (null outside qualifying).
 
 ## Inventory
 
 - **INFO** `pit` session 11357 (2026 Monza Qualifying): no file; logged as no data (404) in _no_data.csv
+- **INFO** `pit` session 11365 (2026 Madrid Qualifying): no file; logged as no data (404) in _no_data.csv
 
 ## Schema consistency
 
@@ -49,6 +50,7 @@ No issues.
 - **INFO** `race_control` session 9935 (2025 Spa-Francorchamps Qualifying): `lap_number` is entirely null
 - **INFO** `race_control` session 11357 (2026 Monza Qualifying): `driver_number` is entirely null
 - **INFO** `race_control` session 11357 (2026 Monza Qualifying): `lap_number` is entirely null
+- **INFO** `race_control` session 11365 (2026 Madrid Qualifying): `lap_number` is entirely null
 
 ## Value ranges
 
@@ -144,6 +146,30 @@ No issues.
   | 3 | 4 | 1956.9 | True |
   | 44 | 4 | 1956.2 | True |
   | 27 | 4 | 1956.0 | True |
+
+- **WARN** `laps` session 11365 (2026 Madrid Qualifying): 66 lap(s) slower than 1.3 x the session median (124.2 s, so over 161.5 s); flagged laps range 163.9-979.6 s (examples: slowest first) (66 row(s))
+
+  Examples (up to 5):
+
+  | driver_number | lap_number | lap_duration | is_pit_out_lap |
+  |---|---|---|---|
+  | 3 | 7 | 979.6 | True |
+  | 5 | 7 | 908.5 | True |
+  | 16 | 7 | 868.3 | True |
+  | 44 | 7 | 861.3 | True |
+  | 1 | 8 | 734.3 | True |
+
+- **WARN** `laps` session 11369 (2026 Madrid Race): 19 lap(s) slower than 1.3 x the session median (99.9 s, so over 129.9 s); flagged laps range 130.3-149.2 s (examples: slowest first) (19 row(s))
+
+  Examples (up to 5):
+
+  | driver_number | lap_number | lap_duration | is_pit_out_lap |
+  |---|---|---|---|
+  | 12 | 15 | 149.2 | True |
+  | 1 | 15 | 146.1 | False |
+  | 3 | 15 | 146.0 | True |
+  | 55 | 24 | 143.2 | True |
+  | 63 | 15 | 142.4 | True |
 
 
 ## Driver counts

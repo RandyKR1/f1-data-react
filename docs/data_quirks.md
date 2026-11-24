@@ -213,18 +213,60 @@ be incomplete.
 - Re-download the most recent weekend a few days after it ends, before
   treating its data as final.
 
-## Findings from the 8-session test sample (run 23 November 2026)
+## Findings from the 10-session test sample (run 23 November 2026)
 
-Sample: Race and Qualifying for 2025 Australia (wet), 2025 China (sprint
-weekend), 2025 Belgium (red flag), and 2026 Italy (dry, but also red-flagged,
-so it doesn't serve as the "normal dry weekend" it was chosen for).
+The test sample is the Race and Qualifying sessions of 5 weekends, each
+picked to cover a different situation:
 
-- **No `pit` data for Monza 2026 Qualifying (session 11357).** The API
-  returned 404, but the other three qualifying sessions in the sample each have
-  about 101 `pit` rows, because cars use the pit lane constantly in qualifying.
-  This may be a genuine gap in OpenF1's data. **Re-check during the full run**:
-  if other 2026 qualifying sessions also have no `pit` data, it's a 2026-wide
-  change rather than a one-off.
+| Weekend | Qualifying / Race | Purpose |
+|---|---|---|
+| 2025 Australia (Melbourne) | 9689 / 9693 | Wet, chaotic race: many stints, DNFs, garbled stints |
+| 2025 China (Shanghai) | 9994 / 9998 | Sprint weekend: Sprint labelled `session_type = "Race"`, two grids |
+| 2025 Belgium (Spa) | 9935 / 9939 | Red flag before the start (`flag = 'RED'`) |
+| 2026 Italy (Monza) | 11357 / 11361 | Second red-flag case: dry, red flag on lap 3 logged only in `message`, standing restart, 22-car field |
+| 2026 Spain (Madrid) | 11365 / 11369 | Dry baseline: no rain, no red flag, no Safety Car, one VSC |
+
+**How Madrid was chosen (from the data):** Monza was originally meant to be
+the dry baseline but turned out to be red-flagged. Of the 15 finished 2026
+non-sprint weekends in the saved schedule, Monza (already in the sample) and
+Las Vegas (still filling in, see above) were left out, and 6 spread evenly
+across the season were checked using only their race's `weather` and
+`race_control`:
+
+| Race | Session | Rainfall rows | Red flag | SC periods | VSC periods |
+|---|---|---|---|---|---|
+| Australia (Melbourne) | 11234 | 0 of 148 | no | 0 | 3 |
+| Monaco (Monte Carlo) | 11299 | 0 of 208 | yes | 2 | 0 |
+| Belgium (Spa) | 11334 | 0 of 146 | no | 1 | 2 |
+| **Spain (Madrid)** | **11369** | **0 of 161** | **no** | **0** | **1** |
+| United States (Austin) | 11396 | 0 of 159 | no | 0 | 2 |
+| São Paulo | 11412 | 7 of 160 | no | 0 | 0 |
+
+A red flag means a `message` matching `'RED FLAG%'` or `= 'SESSION ABORTED'`.
+SC and VSC periods are counted as `'SAFETY CAR DEPLOYED'` and
+`'VSC DEPLOYED'` messages. Madrid was the only dry race with no red flag
+and just one SC/VSC period.
+
+- **Madrid looks clean in the validator.** Its race has only 19 slow-lap
+  WARNs, all explained: 17 on the VSC (laps 14-15, when 10 cars pitted), 1
+  pit-out lap (lap 24), and Hamilton's (#44) last lap before retiring
+  (lap 6). Compare 80-274 in the red-flagged and wet races.
+- **No `pit` data for 2026 Qualifying: Monza (11357) and Madrid (11365).**
+  The API returned 404 for both, while the three 2025 qualifying sessions in
+  the sample each have about 101 `pit` rows (cars use the pit lane constantly
+  in qualifying). Two out of two 2026 qualifying sessions now, so it's likely
+  a 2026-wide gap rather than a one-off. **Confirm during the full run**, and
+  don't rely on `pit` for 2026 qualifying.
+- **Drivers with no qualifying time can be missing from `session_result`.**
+  In Madrid 2026 Qualifying (11365), Stroll (#18) and Bearman (#87) set no
+  time. They have `starting_grid` rows (P21 and P22, `lap_duration` null) but
+  **no `session_result` row**, so the file has 20 rows for 22 drivers. In
+  Melbourne 2025 (9689) Bearman, who also set no time, *does* have a
+  `session_result` row with `dns = true` and no position. **Treat
+  `drivers` (or `starting_grid`) as the list of a session's drivers and
+  left-join results onto it**, never the other way round.
+  `validate_raw.py`'s driver-count check only counts `drivers`, so it didn't
+  flag this.
 - **2026 has 22 drivers and 11 teams** (Cadillac joined). `drivers`,
   `session_result`, and `starting_grid` have 22 rows per session in 2026 and
   20 in 2023-2025. Base driver-count checks on the season, not a fixed 20.
