@@ -352,3 +352,65 @@ time for cars waiting in the pit lane.
   red flag).
 - **Pit and lap analysis must exclude red-flag periods** (find them in
   `race_control`, using the message-text matching above).
+
+## Baku 2025 Qualifying: no `laps` data
+
+Baku 2025 Qualifying (session 9900) had **six red flags**. Its
+`race_control` messages run from 11:56:53 to 14:09:07 UTC, **about 2 h 10 min**
+for a session that normally takes about an hour.
+
+- **`laps` returns 404 (no data)** for this session. It was missing in the
+  2025 pull and **still missing after a retry** (`--retry-no-data`,
+  24 November 2026), so it stays logged in `_no_data.csv`. Every other
+  endpoint has data (122 stints, 122 pit rows, 1,495 position rows, 20
+  results, 20 grid rows).
+- **Teammate pace analysis must fall back to the official Q1/Q2/Q3 times in
+  `session_result.duration` for this session** (JSON lists, e.g.
+  `json_extract(duration, '$[2]')` for Q3). 19 drivers have a Q1 time, 14 a
+  Q2 time, and 8 a Q3 time. There are no per-lap or sector times.
+
+## Findings from the 2025 pull (Race + Qualifying, run 24 November 2026)
+
+48 sessions, 420 requests, 0 rate-limit responses, no undeclared columns.
+The only no-data result was Baku Qualifying `laps` (above).
+`validate_raw.py --year 2025 --session-name Race,Qualifying` reports
+3 FAIL and 50 WARN. All of them are explained here or in earlier sections:
+
+- **Slow-lap WARNs are explained.** Qualifying ones are garage time (see
+  "Qualifying laps include garage time"). For races, 1,449 of the 1,493
+  flagged laps across 24 races fall on lap 1, a pit in- or out-lap, or a
+  Safety Car, VSC or red-flag period. The remaining 44 are Spa's 40 Safety
+  Car laps (next bullet) and 4 single laps.
+- **Safety Car periods aren't always logged.** Spa 2025 race (9939) laps
+  1-4 are 164-219 s (median 108 s): the field ran behind the Safety Car
+  after the pre-start red flag. But `race_control` has only "RED FLAG",
+  "SESSION STARTED" and "SESSION FINISHED", with no `SafetyCar` messages.
+  Don't rely on `race_control` alone to find neutralised laps. Also
+  flag laps far slower than the median for every driver at once.
+- **VSC messages are worded differently by season.** 2025 uses "VIRTUAL
+  SAFETY CAR DEPLOYED" / "VIRTUAL SAFETY CAR ENDING", while 2026 uses "VSC
+  DEPLOYED" / "VSC ENDING". **Match both** (or `category = 'SafetyCar'`
+  plus `message LIKE '%DEPLOYED'`) when counting VSC periods. The 2026
+  dry-baseline comparison above was unaffected (all 2026).
+- **FAIL: phantom drivers in Spielberg 2025 Qualifying `stints` (9951).**
+  12 driver numbers not in that session's `drivers` file (2, 3, 7, 8, 9,
+  11, 15, 17, 20, 21, 24, 25) each have one SOFT stint covering lap 1 only,
+  and no laps. 8 more stints, for real drivers (stint 2 or 3, laps 3-9),
+  have a null `compound` (the "compound outside the known set" WARN).
+  **Cleaning:** drop stints whose driver isn't in the same session's
+  `drivers`, and keep null compounds as unknown.
+- **FAIL: zero-length first stints in Monaco 2025 race (9979).** Drivers
+  #5, #10, #22 and #87 have stint 1 with `lap_start` 1 and `lap_end` 0,
+  followed by stint 2 starting on lap 1. This is a different pattern from
+  Melbourne's garbled stints: an empty placeholder, not misread tyre
+  changes. **Cleaning:** drop stints where `lap_end = lap_start - 1`.
+- **WARN: 19 drivers in Barcelona 2025 race (9971).** Stroll (#18)
+  qualified (grid P14 in 9967) but has no row in the race's `drivers`,
+  `session_result` or `laps`. A driver who doesn't start the race can be
+  missing from the race's files altogether, not marked `dns`. **Take a
+  weekend's entry list from qualifying `drivers` / `starting_grid`**, not
+  from the race.
+- **WARN (Results coverage): Bortoleto (#5) in São Paulo 2025 Qualifying
+  (9865)** has no `session_result` row and no laps, but has a grid row (P20,
+  no time). This is the same as Stroll and Bearman in Madrid 2026 (see
+  "Drivers with no qualifying time can be missing from `session_result`").
