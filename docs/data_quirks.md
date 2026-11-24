@@ -262,9 +262,9 @@ and just one SC/VSC period.
 - **No `pit` data for 2026 Qualifying: Monza (11357) and Madrid (11365).**
   The API returned 404 for both, while the three 2025 qualifying sessions in
   the sample each have about 101 `pit` rows (cars use the pit lane constantly
-  in qualifying). Two out of two 2026 qualifying sessions now, so it's likely
-  a 2026-wide gap rather than a one-off. **Confirm during the full run**, and
-  don't rely on `pit` for 2026 qualifying.
+  in qualifying). **Resolved by the full 2026 pull:** it's not season-wide.
+  Qualifying `pit` is missing for the first 18 weekends and present from
+  Mexico City onward (see "Findings from the 2026 pull").
 - **Drivers with no qualifying time can be missing from `session_result`.**
   In Madrid 2026 Qualifying (11365), Stroll (#18) and Bearman (#87) set no
   time. They have `starting_grid` rows (P21 and P22, `lap_duration` null) but
@@ -414,3 +414,80 @@ The only no-data result was Baku Qualifying `laps` (above).
   (9865)** has no `session_result` row and no laps, but has a grid row (P20,
   no time). This is the same as Stroll and Bearman in Madrid 2026 (see
   "Drivers with no qualifying time can be missing from `session_result`").
+
+## Findings from the 2026 pull (Race + Qualifying, run 24 November 2026)
+
+42 sessions (21 weekends; Bahrain and Saudi Arabia cancelled), 372 requests,
+0 rate-limit responses, no undeclared columns. 24 new no-data results, all
+`pit` or `team_radio` (below).
+
+### Qualifying `pit` is missing until Mexico City
+
+`pit` returns 404 for **18 of 21 2026 qualifying sessions**, Melbourne
+(11230) through Austin (11392). It's present for the last three:
+Mexico City (11400, 173 rows), São Paulo (11408, 82) and Las Vegas
+(11416, 75). Race `pit` is present for all 21 races.
+
+- So OpenF1 started publishing 2026 qualifying pit data from Mexico City
+  (31 October 2026); it isn't a season-wide gap. A `--retry-no-data` run
+  later may show whether the earlier sessions get backfilled.
+- **Don't build qualifying pit-lane analysis for 2026 before Mexico City.**
+  Qualifying `laps.is_pit_out_lap` is still there as a partial substitute.
+
+### `team_radio` is missing only for the first four weekends
+
+`team_radio` returns 404 for both sessions of Melbourne, Shanghai, Suzuka
+and Miami (8 no-data rows), and is present for both sessions of every
+weekend from Montréal onward (5-40 clips per session). This is better
+coverage than the OpenF1 docs suggest ("most events providing no radio
+data at all").
+
+### Marina Bay 2026 Qualifying: `position = "RT"` (stored as JSON text)
+
+In `session_result` for 11384, Hadjar (#6, 3 laps, no time) has
+`position = "RT"` (retired) instead of a number or null. It's the only text
+value seen in `position` anywhere.
+
+- Ingest couldn't store the column as `Int64`, so it printed a WARNING and
+  fell back to JSON text for **this file only**: `position` is `VARCHAR`
+  here (`"RT"` with quotes, other rows `1`, `2`, ...) and `int64` in every
+  other file.
+- **`validate_raw.py` crashes** on any run that includes 11384: reading all
+  files together turns `position` into text, and the numeric range check
+  fails with a DuckDB `BinderException`. The 2026 validation was run on the
+  other 41 sessions; 11384 was checked by hand.
+- **Cleaning:** `TRY_CAST(json_extract_string(position, '$') AS INTEGER)`
+  (or `TRY_CAST` on the plain column in other files) and treat `"RT"` as
+  "no classified position".
+
+### Other validator findings (41 sessions, all explained)
+
+- **Qualifying non-starters missing from `session_result`** (Results
+  coverage WARN): Melbourne 2026 (11230) Verstappen (#3, 2 laps), Sainz
+  (#55) and Stroll (#18, 0 laps) have grid rows P20-P22 with no time but no
+  result row; all three started the race. Same quirk as Madrid (11365).
+- **Phantom driver in Mexico City 2026 Qualifying `pit` (11400)**: one row
+  for driver #236 (not in that session's `drivers`), lap 1, 40.4 s. Cleaning:
+  drop `pit` rows whose driver isn't in the same session's `drivers`.
+- **Stint FAILs, two patterns already seen in 2025:**
+  - *Zero-length first stints* (`lap_start` 1, `lap_end` 0), like Monaco
+    2025: Montréal (11291) #81, Monte Carlo (11299) #5, #77 and #87.
+  - *Garbled stints in a wet race*, like Melbourne 2025: Kuala Lumpur
+    (11731, rain in 80 weather rows) #11 and #81, with backwards stints on
+    laps 1-3 (e.g. INTERMEDIATE laps 2 to 1).
+- **`compound = "UNKNOWN"`** is a literal value, not a null: Montréal
+  Qualifying (11287) #81 stint 4, Mexico City race (11404) #18 stint 2.
+  Treat it like a missing compound.
+- **`position.position = 23` in a 22-car field**: single rows in Melbourne
+  (11234), Monte Carlo (11299, 2 rows), Barcelona (11307) and Marina Bay
+  (11388). Transient glitches; ignore positions above the field size.
+- **`race_control.lap_number = 0`**: a pre-race message in Melbourne
+  (11234) ("PINK HEAD PADDING MATERIAL MUST BE USED", 03:08 UTC). Pre-start
+  messages can carry lap 0.
+- **Slow-lap WARNs:** qualifying ones are garage time. For races, 1,481 of
+  1,540 flagged laps fall on lap 1, a pit in- or out-lap, or a Safety Car,
+  VSC or red-flag period. Most of the rest are in the two wet races,
+  Kuala Lumpur (24) and Zandvoort (14), and yellow-flag laps just before a
+  VSC (Montréal laps 29-30).
+- 2026 uses only the short VSC wording ("VSC DEPLOYED" / "VSC ENDING"), as
+  noted in the 2025 findings.
