@@ -31,15 +31,28 @@ a driver didn't reach. In races the same fields are single values.
 
 ## How ingest stores these
 
-- `session_result.duration` and `session_result.gap_to_leader` are **always
-  stored as JSON text**, in every file, so the column type is the same across
-  races, sprints, and qualifying. Examples of stored values: `6126.304`, `0`,
-  `"+1 LAP"` (quotes included, since it's a JSON string), `[90.1, 89.7, null]`.
-  A missing value is a real null, not the text `"null"`.
+- `session_result.duration`, `session_result.gap_to_leader` and
+  `session_result.position` are **always stored as JSON text**, in every
+  file, so the column type is the same across races, sprints, and
+  qualifying. Examples of stored values: `6126.304`, `0`, `"+1 LAP"` (quotes
+  included, since it's a JSON string), `[90.1, 89.7, null]`, and for
+  `position` `1` or `"RT"`. A missing value is a real null, not the text
+  `"null"`.
+- `position` joined this list on 24 November 2026 because it can hold text
+  codes (see "Marina Bay 2026 Qualifying" below). Existing files were
+  re-saved with `--resave-local` (all 873 fingerprint checks passed; the
+  fingerprint compares JSON-text columns by decoded value, so `1` stored as
+  an integer equals `'1'` stored as text, while any real value change still
+  stops the re-save).
 - Any other column that Parquet rejects (mixed types) also falls back to JSON
   text, and ingest prints a `note:` line when that happens.
-- The number formatting comes straight from the API, so `0` and `0.0` can both
-  appear for the leader. Parse the JSON before comparing values.
+- The JSON text is encoded from the API's own values, so the leader's gap is
+  stored as `0`, exactly as sent. (Corrected 24 November 2026: an earlier
+  version said `0` and `0.0` could both appear "from the API". The `0.0`
+  actually came from pandas turning whole numbers into decimals when a value
+  was missing. Ingest now encodes JSON columns from the raw values, and the
+  session_result files were re-downloaded.) Parse the JSON before comparing
+  values all the same.
 - To use these in DuckDB, parse them in the cleaning step, e.g.
   `TRY_CAST(gap_to_leader AS DOUBLE)` for race gaps, or
   `json_extract(duration, '$[2]')` for Q3 time.
@@ -448,19 +461,26 @@ In `session_result` for 11384, Hadjar (#6, 3 laps, no time) has
 `position = "RT"` (retired) instead of a number or null. It's the only text
 value seen in `position` anywhere.
 
-- Ingest couldn't store the column as `Int64`, so it printed a WARNING and
-  fell back to JSON text for **this file only**: `position` is `VARCHAR`
-  here (`"RT"` with quotes, other rows `1`, `2`, ...) and `int64` in every
-  other file.
-- **`validate_raw.py` crashes** on any run that includes 11384: reading all
-  files together turns `position` into text, and the numeric range check
-  fails with a DuckDB `BinderException`. The 2026 validation was run on the
-  other 41 sessions; 11384 was checked by hand.
-- **Cleaning:** `TRY_CAST(json_extract_string(position, '$') AS INTEGER)`
-  (or `TRY_CAST` on the plain column in other files) and treat `"RT"` as
-  "no classified position".
+- At first, ingest couldn't store this one file's column as `Int64`, so it
+  fell back to JSON text for that file only, and `validate_raw.py` crashed
+  on any run including 11384 (the numeric range check met text).
+- **Handled at ingest:** `session_result.position` is now declared as JSON
+  text in `SCHEMAS`, so it's `VARCHAR` in **every** file (`1`, `2`, ...,
+  `"RT"` with its quotes). All existing files were re-saved to match.
+- **Handled in the validator:** `validate_raw.py` decodes `position` before
+  the range check, and reports any non-numeric code as INFO with the
+  session and driver (here: `#6 "RT"` in 11384) instead of crashing.
+- **Cleaning step: split `position` into a numeric position plus a status
+  column.** For example `TRY_CAST(json_extract_string(position, '$') AS
+  INTEGER) AS position` (null for codes) and the code itself (`'RT'`) as
+  `position_status`, alongside `dnf` / `dns` / `dsq`. Other text codes may
+  turn up in later seasons; the validator's INFO lists them.
 
-### Other validator findings (41 sessions, all explained)
+### Other validator findings (all explained)
+
+Since the `position` fix the validator runs on all 42 sessions, and on 2025
+and 2026 together (90 sessions): 7 FAIL, all the known stint and phantom-
+driver problems above and in the 2025 findings, and the "RT" INFO.
 
 - **Qualifying non-starters missing from `session_result`** (Results
   coverage WARN): Melbourne 2026 (11230) Verstappen (#3, 2 laps), Sainz

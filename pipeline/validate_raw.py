@@ -390,6 +390,48 @@ def check_lap_durations(con):
                examples=group.drop(columns=["file_session_key", "session_median"]))
 
 
+def position_as_number(con, endpoint):
+    """SQL for an endpoint's position column as an integer.
+
+    session_result.position is JSON text ('1', '"RT"'), so it's decoded first;
+    a text code such as "RT" becomes NULL. Other endpoints store a plain
+    integer, used as it is.
+    """
+    col_type = dict(query(con, f"DESCRIBE {endpoint}")[["column_name", "column_type"]].values)
+    if col_type.get("position") != "VARCHAR":
+        return "position"
+    return ("TRY_CAST(CASE WHEN json_valid(position) THEN json_extract_string(position, '$') "
+            "ELSE position END AS INTEGER)")
+
+
+def check_positions(con, endpoint):
+    """Numeric positions must be between 1 and the season's driver count (WARN).
+
+    Text codes that aren't numbers (e.g. "RT" for retired, Marina Bay 2026
+    Qualifying) are reported as INFO, one per session, naming the drivers.
+    """
+    number = position_as_number(con, endpoint)
+    cases = " ".join(f"WHEN {y} THEN {n}" for y, n in EXPECTED_DRIVERS.items())
+    range_check(con, endpoint,
+                f"{number} < 1 OR {number} > (CASE folder_year {cases} END)",
+                "position outside 1 to the season's driver count",
+                "file_session_key, folder_year, position, * EXCLUDE (filename, file_session_key, folder_year, position)")
+
+    if number == "position":
+        return                        # plain integers: no text codes possible
+    df = query(con, f"""
+        SELECT file_session_key, driver_number, position AS position_text
+        FROM {endpoint}
+        WHERE position IS NOT NULL AND {number} IS NULL
+        ORDER BY 1, 2""")
+    for key, group in df.groupby("file_session_key"):
+        codes = ", ".join(f"#{r.driver_number} {r.position_text}" for r in group.itertuples())
+        report("Value ranges", "INFO", endpoint,
+               f"non-numeric position code(s): {codes}",
+               count=len(group), session_key=key,
+               examples=group.drop(columns=["file_session_key"]))
+
+
 def check_value_ranges(con, endpoints):
     """Values outside plausible ranges (WARN: often legitimate, worth a look)."""
     if "laps" in endpoints:
@@ -401,13 +443,9 @@ def check_value_ranges(con, endpoints):
                     "file_session_key, lap_number, * EXCLUDE (filename, file_session_key, lap_number)")
 
     # Positions between 1 and the season's driver count.
-    cases = " ".join(f"WHEN {y} THEN {n}" for y, n in EXPECTED_DRIVERS.items())
     for endpoint in [e for e in ("session_result", "starting_grid", "position", "overtakes")
                      if e in endpoints]:
-        range_check(con, endpoint,
-                    f"position < 1 OR position > (CASE folder_year {cases} END)",
-                    "position outside 1 to the season's driver count",
-                    "file_session_key, folder_year, position, * EXCLUDE (filename, file_session_key, folder_year, position)")
+        check_positions(con, endpoint)
 
     if "stints" in endpoints:
         known = ", ".join(f"'{c}'" for c in KNOWN_COMPOUNDS)

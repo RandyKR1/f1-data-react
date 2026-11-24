@@ -149,7 +149,9 @@ SCHEMAS = {
         "compound": "string", "tyre_age_at_start": "Int64",
     },
     "session_result": {
-        "position": "Int64", "driver_number": "Int64", "number_of_laps": "Int64",
+        # Usually a number, but can be a text code such as "RT" (retired;
+        # Marina Bay 2026 Qualifying), so it's JSON text in every file.
+        "position": "json", "driver_number": "Int64", "number_of_laps": "Int64",
         "points": "float64",          # races only
         "dnf": "boolean", "dns": "boolean", "dsq": "boolean",
         # A number in races ("12.4"), text for lapped cars ("+1 LAP"), and a
@@ -249,8 +251,9 @@ def parse_args():
                              "the requests this run would make, with a time estimate")
     parser.add_argument("--resave-local", action="store_true",
                         help="don't contact the API; re-apply the declared schemas to raw "
-                             "files already on disk and save them back (honours --year "
-                             "and --session-keys); stops if any file's values would change")
+                             "files already on disk and save them back (honours --year, "
+                             "--session-name and --session-keys); stops if any file's "
+                             "values would change")
     parser.add_argument("--min-age-hours", type=float, default=DEFAULT_MIN_AGE_HOURS,
                         help="only process sessions that ended at least this many hours "
                              f"ago (default: {DEFAULT_MIN_AGE_HOURS})")
@@ -433,8 +436,17 @@ def fetch_json(endpoint, params):
 
 
 def is_missing(value):
-    """True for None or NaN (but not for lists, which pd.isna can't handle)."""
-    return value is None or (isinstance(value, float) and pd.isna(value))
+    """True for None, pandas' NA or NaN (but not for lists, which pd.isna can't handle)."""
+    return value is None or value is pd.NA or (isinstance(value, float) and pd.isna(value))
+
+
+def to_plain_python(value):
+    """json.dumps fallback: numpy numbers (as read back from Parquet) to Python ones."""
+    if hasattr(value, "item"):
+        return value.item()
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    raise TypeError(f"can't encode {type(value).__name__} as JSON")
 
 
 def to_json_text(series):
@@ -445,7 +457,8 @@ def to_json_text(series):
     The result is a pandas string column, so it's saved as Parquet text even
     when every value is missing (a plain object column would save as "null").
     """
-    encoded = series.map(lambda v: None if is_missing(v) else json.dumps(v))
+    encoded = series.map(lambda v: None if is_missing(v)
+                         else json.dumps(v, default=to_plain_python))
     return encoded.astype("string")
 
 
@@ -542,7 +555,18 @@ def save_parquet(records, endpoint, out_path):
     Every field the API returns becomes a column; nothing is dropped or renamed.
     """
     whole_number_cols = find_whole_number_columns(records)
-    write_parquet(apply_schema(pd.DataFrame(records), endpoint, whole_number_cols), out_path)
+    df = pd.DataFrame(records)
+    # JSON-text columns are encoded from the API's own values. Going through
+    # a pandas column first would turn whole numbers into decimals whenever a
+    # value is missing (2 -> 2.0), so the text wouldn't match what was sent.
+    for col in json_columns(endpoint) & set(df.columns):
+        df[col] = pd.Series([r.get(col) for r in records], index=df.index, dtype=object)
+    write_parquet(apply_schema(df, endpoint, whole_number_cols), out_path)
+
+
+def json_columns(endpoint):
+    """The columns SCHEMAS declares as JSON text for an endpoint."""
+    return {c for c, t in SCHEMAS.get(endpoint, {}).items() if t == "json"}
 
 
 # --- Re-save existing files (no API), with a fingerprint guard ---------------
@@ -566,13 +590,35 @@ def canonical(value):
     return value                      # None, bool, int, str
 
 
+def decode_json_text(value):
+    """A JSON-text value decoded back to what it stands for ('1' -> 1,
+    '"RT"' -> "RT", '[90.1, null]' -> [90.1, None]). Missing stays None;
+    text that isn't valid JSON is returned unchanged."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
 def fingerprint(path):
     """{column: hash of its values in row order} for one Parquet file, plus the
-    row count under "(rows)". Column order doesn't matter; row order does."""
+    row count under "(rows)". Column order doesn't matter; row order does.
+
+    Columns declared "json" in SCHEMAS are compared by their decoded values,
+    so moving a column to JSON text (integer 1 -> text '1') doesn't count as a
+    change, while any change to the value itself still does. Other text
+    columns are compared as plain text.
+    """
     table = pq.ParquetFile(path).read()
+    decode = json_columns(path.parent.parent.name)
     result = {"(rows)": table.num_rows}
     for name in table.column_names:
-        values = [canonical(v) for v in table.column(name).to_pylist()]
+        values = table.column(name).to_pylist()
+        if name in decode:
+            values = [decode_json_text(v) for v in values]
+        values = [canonical(v) for v in values]
         text = json.dumps(values, default=str)
         result[name] = hashlib.sha256(text.encode()).hexdigest()
     return result
@@ -589,11 +635,15 @@ def read_for_resave(path):
     # pandas turns a list column into numpy arrays, and a list with a missing
     # item into decimals (2048 -> 2048.0). Take list columns straight from the
     # file as plain Python lists, so they're written back exactly as they were.
+    # Likewise, a column about to become JSON text is taken from the file's own
+    # values, so whole numbers stay whole (2, not 2.0) when some are missing.
+    endpoint = path.parent.parent.name
     for f in table.schema:
-        if pa.types.is_list(f.type) or pa.types.is_large_list(f.type):
+        is_list = pa.types.is_list(f.type) or pa.types.is_large_list(f.type)
+        to_json = f.name in json_columns(endpoint) and f.name not in json_text_cols
+        if is_list or to_json:
             df[f.name] = pd.Series(table.column(f.name).to_pylist(),
                                    index=df.index, dtype=object)
-    endpoint = path.parent.parent.name
     return apply_schema(df, endpoint, json_text_cols=json_text_cols)
 
 
@@ -632,13 +682,15 @@ def resave_local(years, session_keys=None):
     With session_keys, only those sessions' per-session files are re-saved
     (meetings and sessions files are skipped).
     """
+    # None means "no session filter"; an empty list means "no sessions".
+    filtered = session_keys is not None
     wanted = {f"session_{k}" for k in session_keys or []}
     for endpoint in SCHEDULE_ENDPOINTS + SESSION_ENDPOINTS:
-        if session_keys and endpoint in SCHEDULE_ENDPOINTS:
+        if filtered and endpoint in SCHEDULE_ENDPOINTS:
             continue
         for year in years:
             for path in sorted((RAW_DIR / endpoint / f"year={year}").glob("*.parquet")):
-                if session_keys and path.stem not in wanted:
+                if filtered and path.stem not in wanted:
                     continue
                 resave_one(path)
 
@@ -942,7 +994,12 @@ def main():
 
     # Re-save local files with the declared schemas, request nothing.
     if args.resave_local:
-        resave_local(years, args.session_keys)
+        keys = args.session_keys
+        if args.session_name:
+            # Every saved session with these names, however recent.
+            keys = load_sessions(years, args.session_name, keys,
+                                 min_age_hours=0)["session_key"].tolist()
+        resave_local(years, keys)
         print_summary()
         return
 
