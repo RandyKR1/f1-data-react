@@ -69,6 +69,7 @@ Run from anywhere:
     python pipeline/export.py --session-keys 11369,11384  # only these, if needed
     python pipeline/export.py --force --session-keys 11369   # re-export these
     python pipeline/export.py --all                       # re-export everything
+    python pipeline/export.py --year 2026                 # only 2026 sessions
     python pipeline/export.py --db X.duckdb --out-dir DIR # other database/output
 """
 
@@ -153,6 +154,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     parser.add_argument("--session-keys", type=ingest.parse_int_list, default=None,
                         help="comma-separated session keys: only consider these sessions")
+    parser.add_argument("--year", type=ingest.parse_int_list, default=None,
+                        help="comma-separated years, e.g. 2025,2026: only consider "
+                             "sessions from these years (index.json is still rebuilt "
+                             "in full)")
     parser.add_argument("--force", action="store_true",
                         help="re-export the --session-keys sessions even if up to date")
     parser.add_argument("--all", action="store_true",
@@ -241,6 +246,13 @@ def exportable_session_keys(con):
     return [k for (k,) in con.execute(f"SELECT DISTINCT session_key FROM ({union}) ORDER BY 1").fetchall()]
 
 
+def session_years(con):
+    """{session_key: year} from the schedule table ({} if it isn't loaded)."""
+    if "raw_sessions" not in table_names(con):
+        return {}
+    return dict(con.execute("SELECT session_key, year FROM raw_sessions").fetchall())
+
+
 def newest_mtime(source_files):
     """Latest modification time (ns) among a session's raw files (missing ones ignored)."""
     times = [(ingest.REPO_ROOT / f).stat().st_mtime_ns
@@ -260,6 +272,11 @@ def plan_exports(con, args, sessions_dir):
         if missing:
             sys.exit(f"No raw data for session key(s) {missing}; nothing written.")
         keys = args.session_keys
+    if args.year is not None:
+        # Uses each session's year from the schedule; no years are built in.
+        years = session_years(con)
+        keys = [k for k in keys if years.get(k) in args.year]
+        print(f"Year filter {','.join(map(str, args.year))}: {len(keys)} session(s) with raw data")
 
     sources = source_files_by_session(con)
     plan, skipped = [], 0
