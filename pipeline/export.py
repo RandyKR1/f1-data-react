@@ -18,13 +18,21 @@ Two kinds of file, both under public/data/:
    and sorted by date). Rebuilt after the session files, so its "exported"
    flags and last_exported_date_end describe the files actually on disk.
 
-Matching the API exactly:
-- Each row has exactly the fields its source Parquet file has, i.e. the
-  fields the API sent. The database's merged tables add columns that are
-  missing from some files (e.g. points in qualifying session_result) and add
-  year from the folder name, so the field list is read from the source
-  file's schema (metadata only, no data). This drops our source_file column
-  and partition-only columns, and nothing else.
+Which fields are exported:
+- Only the fields in EXPORT_FIELDS (session files) and INDEX_FIELDS
+  (index.json): an allow-list of what the app reads, plus a few kept on
+  purpose. A field OpenF1 adds later stays out until it's added here.
+  docs/export_fields.md lists what's kept, what's dropped and why; the full
+  data stays in data/f1.duckdb.
+
+Matching the API exactly (for the fields that are exported):
+- Each row starts from exactly the fields its source Parquet file has, i.e.
+  the fields the API sent, in the API's order; the allow-list then removes
+  fields without reordering the rest. (The database's merged tables add
+  columns missing from some files, e.g. points in qualifying session_result,
+  and year from the folder name, so the field list is read from the source
+  file's schema: metadata only, no data.) A kept field the API didn't send
+  for a session stays absent rather than appearing as null.
 - Columns stored as JSON text (session_result.position, duration,
   gap_to_leader) are decoded back to their original values: 1, "RT",
   [90.1, 89.7, null]. List columns (laps.segments_sector_*) are stored as
@@ -66,6 +74,44 @@ SESSION_FILE_ENDPOINTS = [
 # results from positions, like loadSessionData in src/api.js).
 FALLBACK_ENDPOINT = "position"
 
+# Allow-lists: the only fields written, per object. Order here doesn't matter;
+# fields keep the API's order. Why each field is kept or dropped:
+# docs/export_fields.md.
+_SESSION_FIELDS = [   # whole object kept, so it matches /sessions exactly
+    "session_key", "session_type", "session_name", "date_start", "date_end",
+    "meeting_key", "circuit_key", "circuit_short_name", "country_key",
+    "country_code", "country_name", "location", "gmt_offset", "year", "is_cancelled",
+]
+_MEETING_FIELDS = [   # whole object kept, so it matches /meetings exactly
+    "meeting_key", "meeting_name", "meeting_official_name", "location",
+    "country_key", "country_code", "country_name", "country_flag", "circuit_key",
+    "circuit_short_name", "circuit_type", "circuit_info_url", "circuit_image",
+    "gmt_offset", "date_start", "date_end", "year", "is_cancelled",
+]
+EXPORT_FIELDS = {
+    "session": _SESSION_FIELDS,
+    "meeting": _MEETING_FIELDS,
+    "drivers": ["driver_number", "first_name", "last_name", "name_acronym",
+                "team_name", "team_colour", "headshot_url"],
+    "laps": ["driver_number", "lap_number", "date_start",   # date_start: Ghost Car
+             "duration_sector_1", "duration_sector_2", "duration_sector_3",
+             "is_pit_out_lap", "lap_duration"],
+    "stints": ["driver_number", "lap_start", "lap_end", "compound"],
+    "session_result": ["position", "driver_number", "number_of_laps", "points",
+                       "dnf", "dns", "dsq", "duration", "gap_to_leader"],
+    "weather": ["date", "air_temperature", "track_temperature", "humidity",
+                "rainfall", "wind_direction", "wind_speed"],
+    "race_control": ["date", "category", "flag", "message"],
+    "team_radio": ["date", "driver_number", "recording_url"],
+    "position": ["date", "driver_number", "position"],
+}
+INDEX_FIELDS = {
+    "meeting": ["meeting_key", "meeting_official_name", "location", "date_start",
+                "year", "is_cancelled"],
+    "session": ["session_key", "session_type", "session_name", "date_start",
+                "date_end", "meeting_key", "location", "year", "is_cancelled"],
+}
+
 
 # --- Command-line options -----------------------------------------------------
 
@@ -96,6 +142,15 @@ def to_api_row(row, endpoint):
     return api_row
 
 
+def keep_fields(row, allowed):
+    """A row with only the allowed fields, in the row's own (API) order."""
+    return {k: v for k, v in row.items() if k in allowed}
+
+
+def keep_fields_all(rows, allowed):
+    return [keep_fields(row, allowed) for row in rows]
+
+
 def query_rows(con, endpoint, where_sql="TRUE", params=(), order_by="rowid"):
     """Rows of raw_<endpoint> matching a WHERE clause, as API-shaped dicts.
 
@@ -124,13 +179,19 @@ def build_session(con, session_key):
     """Everything one session file holds, keyed by endpoint name."""
     session = query_rows(con, "sessions", "session_key = ?", [session_key])[0]
     meeting = query_rows(con, "meetings", "meeting_key = ?", [session["meeting_key"]])[0]
-    data = {"session": session, "meeting": meeting}
+    data = {"session": keep_fields(session, EXPORT_FIELDS["session"]),
+            "meeting": keep_fields(meeting, EXPORT_FIELDS["meeting"])}
     for endpoint in SESSION_FILE_ENDPOINTS:
-        data[endpoint] = query_rows(con, endpoint, "session_key = ?", [session_key])
+        data[endpoint] = endpoint_rows(con, endpoint, session_key)
     if not data["session_result"]:
-        data[FALLBACK_ENDPOINT] = query_rows(con, FALLBACK_ENDPOINT, "session_key = ?",
-                                             [session_key])
+        data[FALLBACK_ENDPOINT] = endpoint_rows(con, FALLBACK_ENDPOINT, session_key)
     return data
+
+
+def endpoint_rows(con, endpoint, session_key):
+    """One endpoint's rows for a session, with only the exported fields."""
+    rows = query_rows(con, endpoint, "session_key = ?", [session_key])
+    return keep_fields_all(rows, EXPORT_FIELDS[endpoint])
 
 
 def export_sessions(con, session_keys):
@@ -168,8 +229,10 @@ def build_index(meetings, sessions):
 def export_index(con):
     """Rebuild index.json from the schedule tables. Returns the index."""
     by_date = "CAST(date_start AS TIMESTAMPTZ), rowid"
-    meetings = query_rows(con, "meetings", order_by=by_date)
-    sessions = query_rows(con, "sessions", order_by=by_date)
+    meetings = keep_fields_all(query_rows(con, "meetings", order_by=by_date),
+                               INDEX_FIELDS["meeting"])
+    sessions = keep_fields_all(query_rows(con, "sessions", order_by=by_date),
+                               INDEX_FIELDS["session"])
     index = build_index(meetings, sessions)
     write_json_atomic(INDEX_PATH, index)
     return index

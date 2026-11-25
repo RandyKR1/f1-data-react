@@ -3,9 +3,12 @@ Compare exported session files with the live OpenF1 API.
 
 For each session key given, fetches every endpoint that the session's file
 holds (sessions, meetings, drivers, laps, ...) and checks the exported JSON
-against the API response: same number of rows, same rows in the same order,
-same field names, and the same values with the same JSON types (1 vs 1.0 vs
-"1", null vs missing all count as differences).
+against the API response, on the fields we export (export.EXPORT_FIELDS):
+each API row is cut down to the allow-list, keeping its own field order,
+and must then equal the exported row exactly: same number of rows, same
+order, same field names, and the same values with the same JSON types (1 vs
+1.0 vs "1", null vs missing all count as differences). API fields that
+aren't exported are listed for information; they aren't differences.
 
 Uses ingest.fetch_json, so requests are paced 2.1 s apart (start to start)
 and 429s are retried and logged. This DOES make API requests: one per
@@ -91,11 +94,15 @@ def compare_session(session_key):
         # session and meeting are single objects in the file, lists in the API.
         endpoint = {"session": "sessions", "meeting": "meetings"}.get(key, key)
         ours_rows = [ours] if key in ("session", "meeting") else ours
-        api = api_rows(endpoint, session)
+        full_api = api_rows(endpoint, session)
+        api = export.keep_fields_all(full_api, export.EXPORT_FIELDS[key])
+        not_exported = sorted({f for row in full_api for f in row} - set(export.EXPORT_FIELDS[key]))
         found = differences(api, ours_rows, key)
         total += len(found)
         status = "OK" if not found else f"{len(found)} difference(s)"
         print(f"  {key:15} {len(api):6} rows (API) {len(ours_rows):6} rows (export)  {status}")
+        if not_exported:
+            print(f"      (not exported: {', '.join(not_exported)})")
         for line in found[:MAX_SHOWN]:
             print(f"      {line}")
         if len(found) > MAX_SHOWN:
