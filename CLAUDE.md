@@ -36,3 +36,5 @@
   `/{...}-results/:sessionKey/:sessionName/:driver_number` for driver pages.
 - Driver numbers are only unique within a session; always join on the same session's `/drivers` data.
 - OpenF1 is unavailable during live F1 sessions.
+- Never make OpenF1 API requests beyond what the current task explicitly asks for.
+  If extra requests would help, stop and ask first, stating how many.
