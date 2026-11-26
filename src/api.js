@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { buildFallbackResults } from './utilities';
+import { getIndexMeetings } from './dataIndex';
 
 const BASE_URL = 'https://api.openf1.org/v1';
 const MAX_RETRIES = 2;
@@ -61,14 +62,45 @@ export const getSession = async (sessionKey) =>
     (await fetchData("sessions", { session_key: sessionKey }, "Session Data"))[0] ?? null;
 export const getMeeting = async (meetingKey) =>
     (await fetchData("meetings", { meeting_key: meetingKey }, "Meeting Data"))[0] ?? null;
-export const getSessionsFor = (location, year) =>
-    fetchData("sessions", { location, year }, "Sessions Data");
 
-// The full meeting list only changes daily, so fetch it once per page load
+/* ---------- Schedule (used by Search) ----------
+ * In "local" mode these come from public/data/index.json (see dataIndex.js),
+ * with no OpenF1 request. getIndexMeetings() is null in "api" mode or if the
+ * index couldn't be loaded, and then the live API is used exactly as before.
+ * Local rows are in the API's shape: index-only fields (a meeting's nested
+ * `sessions`, a session's `exported`) are removed.
+ */
+
+// Shallow copy of an object without one key
+const withoutKey = (obj, key) => {
+    const copy = { ...obj };
+    delete copy[key];
+    return copy;
+};
+
+// Sessions at this location in this year, like /sessions?location=&year=.
+// A location can span several meetings (e.g. Sakhir: testing + Grand Prix).
+export const getSessionsFor = async (location, year) => {
+    const meetings = await getIndexMeetings();
+    if (!meetings) return fetchData("sessions", { location, year }, "Sessions Data");
+    return meetings
+        .flatMap((meeting) => meeting.sessions)   // already in date order
+        .filter((s) => s.location === location && String(s.year) === String(year))
+        .map((session) => withoutKey(session, "exported"));
+};
+
+// All meetings, without their nested sessions (like /meetings)
+const loadMeetings = async () => {
+    const meetings = await getIndexMeetings();
+    if (!meetings) return fetchData("meetings", {}, "Meeting Data");
+    return meetings.map((meeting) => withoutKey(meeting, "sessions"));
+};
+
+// The full meeting list only changes daily, so load it once per page load
 // and share it (Search is rendered on every results page).
 let meetingsRequest = null;
 export const getMeetings = () => {
-    meetingsRequest ??= fetchData("meetings", {}, "Meeting Data").catch((error) => {
+    meetingsRequest ??= loadMeetings().catch((error) => {
         meetingsRequest = null; // allow a retry after a failure
         throw error;
     });
