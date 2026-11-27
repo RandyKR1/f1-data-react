@@ -155,17 +155,40 @@ async function localRows(sessionKey, endpoint) {
     return Array.isArray(file?.[endpoint]) ? file[endpoint] : null;
 }
 
+/* Dev-only timing: one console line per call, e.g.
+ * "[timing] loadSessionData 11369 local: 42 ms". Everything is behind
+ * import.meta.env.DEV, which Vite replaces with false in production builds,
+ * so the bundler drops it. */
+const timingStart = () => (import.meta.env.DEV ? performance.now() : 0);
+const logTiming = (name, sessionKey, source, start) => {
+    if (import.meta.env.DEV) {
+        console.log(`[timing] ${name} ${sessionKey} ${source}: ${Math.round(performance.now() - start)} ms`);
+    }
+};
+
 // Local-first: the session file in "local" mode for exported sessions,
 // otherwise (or if the file fails) the OpenF1 API, exactly as before.
-export const getWeather = async (sessionKey) =>
-    (await localRows(sessionKey, "weather")) ??
-    fetchData("weather", { session_key: sessionKey }, "Weather Data");
-export const getRaceControl = async (sessionKey) =>
-    (await localRows(sessionKey, "race_control")) ??
-    fetchData("race_control", { session_key: sessionKey }, "Race Control Data");
-export const getTeamRadio = async (sessionKey) =>
-    (await localRows(sessionKey, "team_radio")) ??
-    fetchData("team_radio", { session_key: sessionKey }, "Team Radio Data");
+async function localFirstRows(name, endpoint, sessionKey, label) {
+    const start = timingStart();
+    let source = "api";
+    try {
+        const local = await localRows(sessionKey, endpoint);
+        if (local) {
+            source = "local";
+            return local;
+        }
+        return await fetchData(endpoint, { session_key: sessionKey }, label);
+    } finally {
+        logTiming(name, sessionKey, source, start);
+    }
+}
+
+export const getWeather = (sessionKey) =>
+    localFirstRows("getWeather", "weather", sessionKey, "Weather Data");
+export const getRaceControl = (sessionKey) =>
+    localFirstRows("getRaceControl", "race_control", sessionKey, "Race Control Data");
+export const getTeamRadio = (sessionKey) =>
+    localFirstRows("getTeamRadio", "team_radio", sessionKey, "Team Radio Data");
 
 // The results-page data from the local file, or null to use the API instead.
 // isExported() is always false in "api" mode, so this never fetches there.
@@ -196,19 +219,28 @@ async function loadLocalSessionData(sessionKey, includeStints) {
  * falls back to the last live position for each driver (isOfficial: false).
  */
 export async function loadSessionData(sessionKey, { includeStints = false } = {}) {
-    const local = await loadLocalSessionData(sessionKey, includeStints);
-    if (local) return local;
+    const start = timingStart();
+    let source = "api";
+    try {
+        const local = await loadLocalSessionData(sessionKey, includeStints);
+        if (local) {
+            source = "local";
+            return local;
+        }
 
-    const [session, drivers, laps, stints, officialResults] = await Promise.all([
-        getSession(sessionKey),
-        getDrivers(sessionKey),
-        getLaps(sessionKey),
-        includeStints ? getStints(sessionKey) : [],
-        getSessionResult(sessionKey),
-    ]);
-    if (!session) throw new Error("Session not found.");
+        const [session, drivers, laps, stints, officialResults] = await Promise.all([
+            getSession(sessionKey),
+            getDrivers(sessionKey),
+            getLaps(sessionKey),
+            includeStints ? getStints(sessionKey) : [],
+            getSessionResult(sessionKey),
+        ]);
+        if (!session) throw new Error("Session not found.");
 
-    const meeting = await getMeeting(session.meeting_key);
-    return withResults({ session, meeting, drivers, laps, stints }, officialResults,
-        () => getPosition(sessionKey));
+        const meeting = await getMeeting(session.meeting_key);
+        return await withResults({ session, meeting, drivers, laps, stints }, officialResults,
+            () => getPosition(sessionKey));
+    } finally {
+        logTiming("loadSessionData", sessionKey, source, start);
+    }
 }
