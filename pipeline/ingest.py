@@ -4,8 +4,9 @@ Download raw OpenF1 data and save it as Parquet files.
 Step 1 - schedule (one file per year):
     data/raw/meetings/year=YYYY/meetings.parquet
     data/raw/sessions/year=YYYY/sessions.parquet
-    The current season (today's UTC year) is always re-downloaded; a past
-    season is downloaded only if its file is missing. --skip-schedule skips both.
+    The current and next season (from today's UTC date) are always
+    re-downloaded; a past season is downloaded only if its file is missing.
+    --skip-schedule skips both.
 
 Step 2 - per-session data (one file per session, cancelled sessions skipped):
     data/raw/<endpoint>/year=YYYY/session_<session_key>.parquet
@@ -21,7 +22,7 @@ Runs are incremental. A session + endpoint is skipped when:
       finds data saves it and removes the row from _no_data.csv)
 
 Examples (run from anywhere):
-    python pipeline/ingest.py                              # everything new, 2023-2026
+    python pipeline/ingest.py                              # everything new, 2023 to next year
     python pipeline/ingest.py --year 2025,2026 \
         --session-name Race,Qualifying                     # GP races + qualifying
     python pipeline/ingest.py --session-keys 9689,9693 \
@@ -50,7 +51,17 @@ import requests
 # --- Settings -----------------------------------------------------------------
 
 BASE_URL = "https://api.openf1.org/v1"
-YEARS = range(2023, 2027)          # 2023, 2024, 2025, 2026
+FIRST_YEAR = 2023                  # OpenF1's first season
+
+
+def current_utc_year():
+    """Today's year in UTC."""
+    return datetime.now(timezone.utc).year
+
+
+# Valid years: FIRST_YEAR through next year (today's UTC year + 1), so the
+# range moves forward on its own; next year's calendar is published early.
+YEARS = range(FIRST_YEAR, current_utc_year() + 2)
 SCHEDULE_ENDPOINTS = ["meetings", "sessions"]
 # Per-session endpoints, each requested as /<endpoint>?session_key=KEY.
 # Per the OpenF1 docs none of these need any other parameter.
@@ -710,16 +721,18 @@ def plan_schedule(years, skip_schedule):
       "fetch"        - download it
       "skip_saved"   - past season whose file already exists
       "skip_flag"    - --skip-schedule was given
-    The current season (today's UTC year) is always re-downloaded, because
-    its sessions and cancellations keep changing.
+    The current and next season (today's UTC year and the one after) are
+    always re-downloaded, because their sessions and cancellations keep
+    changing. Past seasons are fetched only if their file is missing.
     """
-    current_year = datetime.now(timezone.utc).year
+    current_year = current_utc_year()
+    refreshed = (current_year, current_year + 1)
     plan = []
     for year in years:
         for endpoint in SCHEDULE_ENDPOINTS:
             if skip_schedule:
                 action = "skip_flag"
-            elif year < current_year and schedule_file(endpoint, year).exists():
+            elif year not in refreshed and schedule_file(endpoint, year).exists():
                 action = "skip_saved"
             else:
                 action = "fetch"
@@ -758,7 +771,14 @@ def load_sessions(years, session_names=None, session_keys=None, limit=None,
     """
     frames = []
     for year in years:
-        frames.append(pd.read_parquet(schedule_file("sessions", year)))
+        path = schedule_file("sessions", year)
+        if not path.exists():
+            # e.g. next year before its schedule is downloaded, or a dry run
+            print(f"Note: no saved sessions schedule for {year}; skipping that year")
+            continue
+        frames.append(pd.read_parquet(path))
+    if not frames:
+        return pd.DataFrame(columns=list(SCHEMAS["sessions"]))
     sessions = pd.concat(frames, ignore_index=True)
 
     # 1. Cancelled. fillna(False) treats a missing flag as "not cancelled".
@@ -1005,7 +1025,7 @@ def main():
 
     # The summary prints even if the run stops early on an error.
     try:
-        # Step 1: refresh the current season's schedule, and any missing ones.
+        # Step 1: refresh the current and next season's schedule, and any missing ones.
         if args.skip_schedule:
             print("Skipping schedule download (using saved meetings/sessions files)")
         download_schedule(plan_schedule(years, args.skip_schedule))

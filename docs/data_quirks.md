@@ -219,6 +219,27 @@ minute**. The per-minute limit is the one that matters for bulk downloads.
   "Bahrain", while every other Sakhir meeting uses "Sakhir" (same
   `circuit_key` 63).
 
+## `location` names change between seasons: group venues by `circuit_key`
+
+OpenF1 names the 2026 Monaco round's `location` **"Monte Carlo"**, while
+2023-2025 use **"Monaco"**. The 2027 schedule also says "Monte Carlo". It's the
+same circuit every year (`circuit_key` 22, `circuit_short_name` "Monte
+Carlo"). **Anything that groups or compares venues must use `circuit_key`,
+not `location`.** The same `location` change shows up for three other
+circuits (meetings and sessions, schedule as of 26 November 2026):
+
+| circuit_key | Circuit | `location` values |
+|---|---|---|
+| 22 | Monaco | "Monaco" 2023-2025, "Monte Carlo" 2026-2027 |
+| 63 | Sakhir | "Sakhir" in most meetings, "Bahrain" for 2026 pre-season testing and the 2027 Grand Prix |
+| 70 | Yas Marina | "Yas Island" 2023-2025, "Yas Marina" 2026-2027 |
+| 151 | Miami | "Miami" 2023-2024, "Miami Gardens" 2025-2027 |
+
+Effect on the app: Search builds its track list from `location`, so Monaco
+and Monte Carlo appear as separate tracks (Monaco offers 2023-2025, Monte Carlo
+offers 2026 onward). This happens the same way with the live API and the local
+index. `/sessions?location=` also matches on the exact name.
+
 ## Recently finished sessions may still be filling in
 
 OpenF1 populates some fields after a session ends. The docs say
