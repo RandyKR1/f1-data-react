@@ -116,6 +116,14 @@
 --     lap 47, Monte Carlo 2026 lap 70). Wet-weather laps (1.12-1.21) stay below
 --     the threshold.
 --   is_neutralized = is_sc_lap OR is_vsc_lap OR is_red_flag_lap OR is_field_slow.
+--
+-- is_deleted: race control deleted the lap's time (track limits or double
+-- yellow) and didn't reinstate it: the lap's latest matched action in
+-- lap_deletions (sql/models/15_lap_deletions.sql) is a deletion. Grouped to
+-- one row per lap before the join, so no lap can repeat. Deletions that
+-- couldn't be matched to a lap (35 of 1,145, mostly qualifying messages with
+-- no lap number or time, and Baku 2025 Qualifying, which has no lap data)
+-- aren't flagged.
 -- No other cleaning flags yet (garage time): later steps.
 -- The segments_sector_* lists stay in stg_laps.
 
@@ -279,6 +287,15 @@ field_pace AS (
     WHERE session_type = 'Race' AND NOT coalesce(is_pit_lap, false) AND NOT is_after_finish
     GROUP BY session_key, lap_number
 ),
+deleted_laps AS (
+    -- One row per lap with a matched deletion or reinstatement; deleted if
+    -- the latest of them is a deletion
+    SELECT session_key, driver_number, matched_lap AS lap_number,
+           arg_max(action, date) = 'deleted' AS is_deleted
+    FROM lap_deletions
+    WHERE matched_lap IS NOT NULL
+    GROUP BY session_key, driver_number, matched_lap
+),
 field_slow AS (
     -- is_field_slow per lap (thresholds and evidence in the header)
     SELECT
@@ -301,7 +318,9 @@ SELECT
     coalesce(f.is_red_flag_lap, false) AS is_red_flag_lap,
     fs.is_field_slow,
     coalesce(f.is_sc_lap, false) OR coalesce(f.is_vsc_lap, false)
-        OR coalesce(f.is_red_flag_lap, false) OR fs.is_field_slow AS is_neutralized
+        OR coalesce(f.is_red_flag_lap, false) OR fs.is_field_slow AS is_neutralized,
+    coalesce(dl.is_deleted, false)     AS is_deleted
 FROM base AS b
 LEFT JOIN period_flags AS f USING (session_key, driver_number, lap_number)
-JOIN field_slow AS fs USING (session_key, driver_number, lap_number);
+JOIN field_slow AS fs USING (session_key, driver_number, lap_number)
+LEFT JOIN deleted_laps AS dl USING (session_key, driver_number, lap_number);

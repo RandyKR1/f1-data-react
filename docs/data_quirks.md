@@ -451,6 +451,28 @@ How neutralizations appear in `race_control` (2025-2026 Race and Qualifying):
 - **Timestamps are whole seconds**, and "SESSION ABORTED" can be logged a
   second before "RED FLAG - RACE SUSPENDED" (Monza 2026).
 
+## Lap-time deletions in `race_control` (inventory, 27 November 2026)
+
+1,145 deletion messages and 7 reinstatements (2025-2026 Race and Qualifying):
+
+- **Formats vary:** "CAR 1 (VER) TIME 1:15.945 DELETED - TRACK LIMITS AT TURN
+  14 LAP 14 16:45:49", "... LAP DELETED - ..." (no time), "... (PIT)",
+  "... DELETED - DOUBLE YELLOW AT TURN 15" (no lap), "... (NEXT LAP PIT)"
+  (no lap, no time), and three 2026 qualifying messages naming the car only
+  by code ("CAR LEC TIME 1:36.518 DELETED ... (Q1)"). Reinstatements:
+  "CAR 43 (COL) TIME 1:39.173 WILL BE REINSTATED", "CAR 55 (SAI) LAP 1 WILL
+  BE REINSTATED". The clock time in the message is local time.
+- **The "LAP N" in a qualifying message is one more than OpenF1's lap
+  number** (the deleted time is lap N−1's duration in 225 of 231 cases, never
+  lap N's). In races it's the same lap.
+- **The same lap time can occur twice for one driver** (Leclerc 1:40.101 on
+  laps 26 and 38, Las Vegas 2026), so a time alone doesn't always identify the
+  lap; a reinstatement should be matched to the deletion it undoes.
+- **Not every invalidated lap gets a "DELETED" message.** Hülkenberg, Sakhir
+  2025 Qualifying: his Q1 lap was deleted after Q1, so his Q2 laps (incl.
+  91.693 s) were void with no message. Bearman, Imola 2025 Qualifying: a
+  76.077 s lap ending at the red flag was only logged as "UNDER REVIEW".
+
 ## Red flags aren't always in the `flag` column
 
 `race_control` logs red flags in more than one way:

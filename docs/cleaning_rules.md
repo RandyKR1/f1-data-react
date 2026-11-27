@@ -78,6 +78,29 @@ red flags (Monza 2026 laps 5-6, Zandvoort 2026 lap 4, Mexico City 2026 lap 47,
 Monte Carlo 2026 lap 70). Known false positive: 1 untimed lap (Barcelona 2026
 #12 lap 62, no time and no next lap, so it can't be placed in time).
 
+## `lap_deletions` and `fct_laps.is_deleted`
+
+`sql/models/15_lap_deletions.sql`: one row per lap-deletion or reinstatement
+message (1,152: 1,145 deletions, 7 reinstatements), parsed and matched to an
+OpenF1 lap. `fct_laps.is_deleted` is true when a lap's latest matched action
+is a deletion (1,065 laps).
+
+| Rule | Evidence |
+|---|---|
+| Parse driver (number, or the 3-letter code looked up in the session's drivers), deleted time (M:SS.mmm → s) and lap number from the message | All 1,152 messages give a driver; 901 a time; 1,105 a lap. |
+| Races: the message's "LAP N" is OpenF1 lap N | The deleted time equals lap N's duration for 646 of 649 messages; the offence clock time falls in lap N for 701 of 712. |
+| Qualifying: the message's "LAP N" is OpenF1 lap N − 1 | The time equals lap N−1's duration for 225 of 231 messages, and never lap N's; the offence time falls in lap N−1 for 351 messages, in lap N for none. |
+| Prefer the lap whose duration equals the deleted time if the lap-numbered lap disagrees; use the time alone when there's no lap number | No message with a lap number needed this; 16 qualifying messages without a lap number match by time. |
+| Reinstatements match through the deletion they undo (same driver, same time or lap, earlier) | Leclerc set 1:40.101 on laps 26 and 38 at Las Vegas 2026; the reinstatement undoes the lap-38 deletion. All 7 reinstatements resolve. |
+| Unmatched deletions aren't flagged | 35 of 1,145 (96.9% matched): 23 qualifying messages with neither a lap number nor a time (14 double yellow, 9 "NEXT LAP PIT"), 10 at Baku 2025 Qualifying (no lap data), 2 at Miami 2025 Race (laps 16-17 missing from `laps`). |
+
+**Validation (qualifying):** each driver's fastest non-deleted lap equals their
+best official Q time for 909 of 911 driver-sessions (99.8%; 98.7% ignoring
+deletions). The 2 differences have no deletion message to match: Hülkenberg,
+Sakhir 2025 (his Q1 lap was deleted after Q1, dropping him to P16, so his Q2
+laps were void; 91.693 s counted here) and Bearman, Imola 2025 (76.077 s lap
+ending at the red flag, logged only as "LAP TIME ... UNDER REVIEW").
+
 ## Planned (not yet applied)
 
 - Pace analysis excludes qualifying times where `position` is null
