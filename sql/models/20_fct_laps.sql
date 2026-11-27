@@ -23,6 +23,11 @@
 --   stg_pit       Reduced to one row per (session_key, driver_number,
 --                 lap_number) with DISTINCT (pit_in_laps), then LEFT JOINed on
 --                 the lap's natural key: at most one row per lap.
+--   stg_session_result  LEFT JOIN on (session_key, driver_number), unique in
+--                 stg_session_result: at most one result per lap.
+--   chequered     One row per session (the last CHEQUERED flag in
+--                 stg_race_control, GROUP BY session_key), LEFT JOINed on
+--                 session_key: at most one row per lap.
 --
 -- Columns added here:
 --   lap_end_time     date_start + lap_duration seconds (a timestamp; null when
@@ -53,6 +58,31 @@
 --     (94.8% in 2025, 81.2% in 2026): a qualifying pit row records a garage
 --     visit, numbered by the lap the car goes out on. So is_pit_in_lap is null
 --     (unknown) for qualifying, and for any session with no pit data at all.
+--
+-- is_lap1: true only for lap 1 of a Race session (sprints included), the
+-- standing start, which runs slower than racing laps (median 100.7 s against
+-- 98.1 s on lap 2). False in qualifying: there, all 918 lap 1s are garage
+-- out-laps (is_pit_out_lap) and 808 of them have no lap time, so a lap-1 flag
+-- would only repeat is_pit_out_lap. Lap 1 never counts as "after finish".
+--
+-- is_after_finish: the lap started after the driver's race or session was
+-- over (cool-down / in-laps after the flag). Evidence (27 November 2026):
+--   Signal A, lap_number > number_of_laps (from stg_session_result), is wrong
+--     on its own: it marks 132 DNF retirement laps and 11 DNS laps (laps that
+--     were never completed, not laps after the finish), and in qualifying
+--     number_of_laps counts in- and out-laps (so it misses all 240 laps after
+--     the final flag) and is 0 for drivers whose times were deleted (69 laps).
+--   Signal B, date_start >= the last CHEQUERED flag, is right but race-control
+--     times are truncated to whole seconds, so it can miss a cool-down lap that
+--     starts within a second of the flag (Spa-Francorchamps 2026 Race #12 lap
+--     45 started at 14:28:35.029, flag logged at 14:28:36).
+--   Rule:
+--     Race:       B, OR (A for drivers still running at the end, i.e. not
+--                 dnf, dns or dsq). Catches Norris Melbourne 2025 lap 58
+--                 (both signals) and the Spa case (A only).
+--     Qualifying: B only, with the session's last chequered flag (end of Q3).
+--   Laps with no date_start (some lap 1s) or sessions with no chequered flag
+--   fall back to what's known: false unless A applies.
 -- No other cleaning flags yet (red flags, garage time): later steps.
 -- The segments_sector_* lists stay in stg_laps.
 
@@ -90,6 +120,14 @@ pit_in_laps AS (
     FROM stg_pit AS p
     JOIN pit_sessions USING (session_key)
     WHERE p.lane_duration IS NOT NULL
+),
+chequered AS (
+    -- When the session ended: the last chequered flag (qualifying shows one per
+    -- part; the last is the end of Q3). One row per session.
+    SELECT session_key, max(date) AS chequered_at
+    FROM stg_race_control
+    WHERE flag = 'CHEQUERED'
+    GROUP BY session_key
 )
 SELECT
     -- Session
@@ -118,6 +156,15 @@ SELECT
          THEN pi.lap_number IS NOT NULL END AS is_pit_in_lap,   -- null: unknown
     (CASE WHEN ps.session_key IS NOT NULL
           THEN pi.lap_number IS NOT NULL END) OR l.is_pit_out_lap AS is_pit_lap,
+    s.session_type = 'Race' AND l.lap_number = 1 AS is_lap1,
+    CASE
+        WHEN s.session_type = 'Race' THEN
+            coalesce(l.date_start >= ch.chequered_at, false)
+            OR coalesce(l.lap_number > r.number_of_laps
+                        AND NOT (coalesce(r.dnf, false) OR coalesce(r.dns, false) OR coalesce(r.dsq, false)), false)
+        WHEN s.session_type = 'Qualifying' THEN
+            coalesce(l.date_start >= ch.chequered_at, false)
+    END AS is_after_finish,
     l.i1_speed,
     l.i2_speed,
     l.st_speed,
@@ -142,4 +189,9 @@ LEFT JOIN pit_sessions AS ps
 LEFT JOIN pit_in_laps AS pi
   ON  pi.session_key   = l.session_key
   AND pi.driver_number = l.driver_number
-  AND pi.lap_number    = l.lap_number;
+  AND pi.lap_number    = l.lap_number
+LEFT JOIN stg_session_result AS r
+  ON  r.session_key   = l.session_key
+  AND r.driver_number = l.driver_number
+LEFT JOIN chequered AS ch
+  ON ch.session_key = l.session_key;

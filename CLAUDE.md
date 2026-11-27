@@ -38,3 +38,20 @@
 - OpenF1 is unavailable during live F1 sessions.
 - Never make OpenF1 API requests beyond what the current task explicitly asks for.
   If extra requests would help, stop and ask first, stating how many.
+
+## Cleaning conventions (data pipeline models)
+Applies to every change in `sql/staging/` and `sql/models/` (built by `python pipeline/build.py`).
+Every model change must:
+- **Keep the row count and the natural key.** Report the row count before and after and confirm
+  the key is unique. If a rule removes rows, count and report exactly how many and why.
+- **Show data evidence before any rule.** Query the data first (rates, counts, examples,
+  exceptions grouped by cause) and only then write the rule. If the evidence doesn't support
+  the rule, say so and stop or adapt; don't apply it anyway.
+- **Comment every rule in the SQL**: what it does and the evidence behind it.
+- **Update `docs/cleaning_rules.md`** with the rule and its evidence (and `docs/data_quirks.md`
+  for new data quirks).
+- **Report flag counts** for the reference sessions 11369 (Madrid 2026 Race), 9939 (Spa 2025
+  Race), 11361 (Monza 2026 Race), 9693 (Melbourne 2025 Race) and 11384 (Marina Bay 2026
+  Qualifying), plus totals by session type and year.
+- **Make no API requests.**
+- **Commit and push** when done.
