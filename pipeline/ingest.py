@@ -5,8 +5,8 @@ Step 1 - schedule (one file per year):
     data/raw/meetings/year=YYYY/meetings.parquet
     data/raw/sessions/year=YYYY/sessions.parquet
     The current and next season (from today's UTC date) are always
-    re-downloaded; a past season is downloaded only if its file is missing.
-    --skip-schedule skips both.
+    re-downloaded, whatever --year says; a past season in --year is
+    downloaded only if its file is missing. --skip-schedule skips both.
 
 Step 2 - per-session data (one file per session, cancelled sessions skipped):
     data/raw/<endpoint>/year=YYYY/session_<session_key>.parquet
@@ -722,13 +722,15 @@ def plan_schedule(years, skip_schedule):
       "skip_saved"   - past season whose file already exists
       "skip_flag"    - --skip-schedule was given
     The current and next season (today's UTC year and the one after) are
-    always re-downloaded, because their sessions and cancellations keep
-    changing. Past seasons are fetched only if their file is missing.
+    always re-downloaded, whatever --year says, because their sessions and
+    cancellations keep changing. Years in --year that are in the past are
+    fetched only if their file is missing. (--year still decides which
+    sessions are processed; this only covers the schedule files.)
     """
     current_year = current_utc_year()
     refreshed = (current_year, current_year + 1)
     plan = []
-    for year in years:
+    for year in sorted(set(years) | set(refreshed)):
         for endpoint in SCHEDULE_ENDPOINTS:
             if skip_schedule:
                 action = "skip_flag"
