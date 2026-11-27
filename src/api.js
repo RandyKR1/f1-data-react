@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { buildFallbackResults } from './utilities';
-import { getIndexMeetings } from './dataIndex';
+import { getIndexMeetings, isExported } from './dataIndex';
 
 const BASE_URL = 'https://api.openf1.org/v1';
 const MAX_RETRIES = 2;
@@ -107,12 +107,80 @@ export const getMeetings = () => {
     return meetingsRequest;
 };
 
+/* ---------- Session pages ---------- */
+
+// Official session_result rows if there are any; otherwise rows built from
+// the last live position of each driver (isOfficial: false). Shared by the
+// local and API paths so both behave the same.
+async function withResults(base, officialResults, getPositions) {
+    if (officialResults.length) {
+        return { ...base, results: officialResults, isOfficial: true };
+    }
+    const positions = await getPositions();
+    const isRace = base.session.session_type === "Race";
+    return { ...base, results: buildFallbackResults(positions, base.laps, isRace), isOfficial: false };
+}
+
+// Local session files (public/data/sessions/<key>.json), fetched at most once
+// per session per page load. Each entry is a promise of the parsed file, or
+// of null if it couldn't be loaded (one warning is logged, then the API is used).
+const localSessionRequests = new Map();
+
+async function fetchLocalSession(key) {
+    const url = `${import.meta.env.BASE_URL}data/sessions/${key}.json`;
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // A missing file can come back as the app's index.html (status 200),
+        // so a JSON parse error usually means the file isn't there.
+        const data = await res.json();
+        if (!data?.session || !Array.isArray(data.laps) || !Array.isArray(data.session_result)) {
+            throw new Error("unexpected file contents");
+        }
+        return data;
+    } catch (error) {
+        console.warn(`Couldn't load ${url} (${error.message}); using the live OpenF1 API for session ${key}.`);
+        return null;
+    }
+}
+
+const getLocalSession = (key) => {
+    if (!localSessionRequests.has(key)) localSessionRequests.set(key, fetchLocalSession(key));
+    return localSessionRequests.get(key);
+};
+
+// The results-page data from the local file, or null to use the API instead.
+// isExported() is always false in "api" mode, so this never fetches there.
+async function loadLocalSessionData(sessionKey, includeStints) {
+    if (!(await isExported(sessionKey))) return null;
+    const key = Number(sessionKey);
+    const file = await getLocalSession(key);
+    if (!file) return null;
+
+    const base = {
+        session: file.session,
+        meeting: file.meeting,
+        drivers: file.drivers,
+        laps: file.laps,
+        stints: includeStints ? file.stints : [],
+    };
+    // export.py includes `position` exactly when session_result is empty
+    return withResults(base, file.session_result,
+        async () => file.position ?? getPosition(key));
+}
+
 /**
- * Everything a results page needs for one session.
+ * Everything a results page needs for one session:
+ * { session, meeting, drivers, laps, stints, results, isOfficial }.
+ * In "local" mode, exported sessions come from their static file; everything
+ * else (and any session whose file fails to load) uses the OpenF1 API.
  * Uses the official session_result classification; if it isn't published yet,
  * falls back to the last live position for each driver (isOfficial: false).
  */
 export async function loadSessionData(sessionKey, { includeStints = false } = {}) {
+    const local = await loadLocalSessionData(sessionKey, includeStints);
+    if (local) return local;
+
     const [session, drivers, laps, stints, officialResults] = await Promise.all([
         getSession(sessionKey),
         getDrivers(sessionKey),
@@ -123,12 +191,6 @@ export async function loadSessionData(sessionKey, { includeStints = false } = {}
     if (!session) throw new Error("Session not found.");
 
     const meeting = await getMeeting(session.meeting_key);
-    const base = { session, meeting, drivers, laps, stints };
-
-    if (officialResults.length) {
-        return { ...base, results: officialResults, isOfficial: true };
-    }
-    const positions = await getPosition(sessionKey);
-    const isRace = session.session_type === "Race";
-    return { ...base, results: buildFallbackResults(positions, laps, isRace), isOfficial: false };
+    return withResults({ session, meeting, drivers, laps, stints }, officialResults,
+        () => getPosition(sessionKey));
 }
