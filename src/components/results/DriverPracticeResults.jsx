@@ -87,7 +87,7 @@ const DriverPracticeResults = () => {
                     <div className="card shadow-sm">
                         <div className="card-body">
                             <p className="card-title fw-bold mb-1">Fastest Lap</p>
-                            <h5 className="mb-0">{bestLap != null ? lapToMinFormat(bestLap) : "N/A"}</h5>
+                            <h5 className="mb-0">{bestLap != null ? lapToMinFormat(bestLap) : laps.length ? "N/A" : "–"}</h5>
                         </div>
                     </div>
                 </div>

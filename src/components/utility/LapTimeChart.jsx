@@ -103,6 +103,7 @@ const LapTimeChart = ({ drivers = [], laps = [], initialDrivers = [] }) => {
         [laps, isQualifying]
     );
 
+    if (!laps.length) return <p className="text-center text-muted my-4">Lap data isn't available for this session.</p>;
     if (!chartDrivers.length) return <p>No lap data found for this session.</p>;
 
     return (

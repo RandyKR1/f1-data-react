@@ -44,8 +44,10 @@ const PracticeResults = () => {
   if (error) return <ErrorMessage message={error} />;
 
   const { session, meeting, drivers, laps, stints, results, isOfficial } = data;
-  if (!laps.length || !drivers.length) {
-    return <ErrorMessage message="No lap data is available for this session yet." />;
+  // Without laps the page still shows results, weather, race control and
+  // radio; the lap chart shows a note instead (e.g. Baku 2025 Qualifying).
+  if (!drivers.length) {
+    return <ErrorMessage message="No driver data is available for this session yet." />;
   }
 
   const scrollToTop = () => {
