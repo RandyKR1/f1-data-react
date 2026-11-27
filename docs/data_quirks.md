@@ -202,6 +202,26 @@ minute**. The per-minute limit is the one that matters for bulk downloads.
 - OpenF1 is also unavailable during live F1 sessions; avoid running ingest
   then.
 
+### The app's page loads and the rate limits
+
+- A results page loaded from the live API makes about **10 OpenF1 requests at
+  once**: session, drivers, laps, stints, session_result, meeting, the meeting
+  list for Search, weather, race_control and team_radio. That burst goes over
+  the 3-per-second limit, so some requests get **HTTP 429**.
+- `fetchData` in `src/api.js` **retries a 429 twice, after 1 s and then 2 s**.
+  So the burst usually still succeeds, just a second or two slower. The 429s
+  only show up in the browser console as failed requests.
+- **The 30-per-minute limit is what actually causes failures.** At about 10
+  requests per page, opening 3 pages within a minute uses up the whole
+  allowance, and the 1 s and 2 s retries can't wait long enough for it to
+  reset. Sections then fail with "Could not load ...", or Search shows
+  "Could not load tracks".
+- **In local mode (`VITE_DATA_SOURCE=local`, the default), exported sessions
+  make zero OpenF1 requests.** Search, results, laps, stints, weather, race
+  control and team radio all come from `public/data`. That avoids the limit
+  for most visitors; only sessions that haven't been exported yet still use
+  the API.
+
 ## 2026 schedule changes: cancellations and a relocated "Bahrain Grand Prix"
 
 - **Bahrain (meeting 1282) and Saudi Arabia (meeting 1283) 2026 are
