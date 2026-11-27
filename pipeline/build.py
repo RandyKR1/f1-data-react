@@ -4,9 +4,11 @@ Build the modelled tables in data/f1.duckdb by running SQL files.
 1. Runs load.py first (unless --no-load), because load.py rebuilds
    data/f1.duckdb from the raw files from scratch, which removes any tables
    built here. So staging is always rebuilt on top of a fresh load.
-2. Runs every .sql file in sql/staging/ in filename order (01_..., 02_...)
-   against data/f1.duckdb. For each file it prints the file name, how long it
-   took, and the row count of the table it created (the last
+2. Runs every .sql file in sql/staging/, then every .sql file in
+   sql/models/, each folder in filename order (01_..., 02_...), against
+   data/f1.duckdb. Staging cleans the raw tables one to one; models build on
+   staging. For each file it prints the file name, how long it took, and the
+   row count of the table it created (the last
    "CREATE OR REPLACE TABLE <name>" in the file). It stops at the first error.
 
 The DuckDB session time zone is set to UTC, so anything in the SQL that turns
@@ -32,7 +34,8 @@ import load    # same folder: the raw-to-DuckDB load step
 # --- Settings -----------------------------------------------------------------
 
 DB_PATH = ingest.REPO_ROOT / "data" / "f1.duckdb"
-SQL_DIRS = [ingest.REPO_ROOT / "sql" / "staging"]   # run in this order
+SQL_DIRS = [ingest.REPO_ROOT / "sql" / "staging",   # run in this order:
+            ingest.REPO_ROOT / "sql" / "models"]    # staging first, then models
 
 # The table a file creates: the last "CREATE OR REPLACE TABLE <name>" in it.
 CREATED_TABLE = re.compile(r"CREATE\s+OR\s+REPLACE\s+TABLE\s+([A-Za-z_][A-Za-z0-9_]*)",
@@ -43,7 +46,8 @@ CREATED_TABLE = re.compile(r"CREATE\s+OR\s+REPLACE\s+TABLE\s+([A-Za-z_][A-Za-z0-
 
 def sql_files():
     """Every .sql file to run, folder by folder, in filename order."""
-    return [path for folder in SQL_DIRS for path in sorted(folder.glob("*.sql"))]
+    return [path for folder in SQL_DIRS if folder.is_dir()
+            for path in sorted(folder.glob("*.sql"))]
 
 
 def created_table(sql):
