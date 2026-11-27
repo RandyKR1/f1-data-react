@@ -421,6 +421,49 @@ in the test sample joins cleanly (next `lap_start` = previous `lap_end` + 1).
 - **Handle in the cleaning step, not in raw data.** Raw files stay exactly as
   the API sent them. `validate_raw.py` reports these as a Stint logic FAIL.
 
+## Laps, stints and pit stops: how they line up (found building `fct_laps`, 27 November 2026)
+
+Checked across all 2025-2026 Race and Qualifying sessions:
+
+- **A DNF driver's last stint ends one lap early.** OpenF1 closes a retiring
+  driver's final stint on the lap *before* their last recorded lap, so the
+  retirement lap falls outside every stint. This is 117 laps, one per DNF
+  driver, in almost every race (e.g. Monte Carlo 2026 #1: stint covers laps
+  1-43, last lap 44). In `fct_laps` these laps have `stint_match_count = 0`
+  and no compound.
+- **Laps can exist beyond the official lap count.** Norris won Melbourne 2025
+  with 57 laps, but `laps` has a lap 58. Bearman, Imola 2025 Qualifying has 8
+  laps in `session_result` but a lap 9 in `laps`. Their stints stop at the
+  official count.
+- **A non-starter can have a recorded lap.** Piastri, Melbourne 2026 Race
+  (DNS) has 1 lap in `laps` and no stints at all.
+
+### `pit.lap_number` means different things in races and qualifying
+
+- **Races: `pit.lap_number` is the in-lap.** The driver's next lap is an
+  OpenF1 pit-out lap for 817 of 821 race pit rows in 2025 (99.5%) and 845 of
+  863 in 2026 (97.9%). The 22 exceptions:
+  - laps missing around the stop (Miami 2025, 4)
+  - stops under a Safety Car (Melbourne 2026 lap 46, 5)
+  - pit rows numbered with the wrong lap: Melbourne 2026 "lap 18" rows are
+    timed when race control was on lap 26 (3)
+  - a pit row after the driver's last lap (Melbourne 2026 #18, 1)
+  - pit-lane starts (Mexico City 2026 lap 1, 9 drivers). These are the only
+    race pit rows with no `lane_duration`, and their lap 1 is already a
+    pit-out lap, so they aren't stops.
+- **Qualifying: `pit.lap_number` is the out-lap.** The next lap is an out-lap
+  for only 2.5% (2025) and 11.2% (2026) of rows, but the pit row's own lap is
+  an out-lap for 94.8% (2025) and 81.2% (2026). A qualifying pit row records
+  a garage visit (hence lane durations of several minutes), numbered by the
+  lap the car goes back out on.
+- **Pit-in laps can't be detected for 2026 qualifying without pit data.**
+  Qualifying `pit` exists for only 3 of the 21 2026 qualifying sessions
+  (Mexico City, São Paulo, Las Vegas; see "Qualifying `pit` is missing until
+  Mexico City"). For the rest there's no pit row to mark an in-lap.
+  `fct_laps.is_pit_in_lap` is null (unknown) for all qualifying laps for now,
+  because the in-lap convention doesn't hold there, and `is_pit_lap` is then
+  only known to be true for out-laps.
+
 ## Qualifying laps include garage time (up to about 1,500 s)
 
 Qualifying `laps` include laps of several minutes, up to about 1,500 s at
