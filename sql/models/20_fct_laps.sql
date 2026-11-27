@@ -83,7 +83,40 @@
 --     Qualifying: B only, with the session's last chequered flag (end of Q3).
 --   Laps with no date_start (some lap 1s) or sessions with no chequered flag
 --   fall back to what's known: false unless A applies.
--- No other cleaning flags yet (red flags, garage time): later steps.
+--
+-- Neutralization flags (sql/models/10_neutral_periods.sql has the periods):
+--   Lap times for overlap checks: the lap's own date_start and lap_end_time.
+--   For a lap with no date_start (24 race and 46 qualifying lap 1s), the end
+--   is the driver's next lap's start, and the start is that minus
+--   lap_duration (when known). A lap with neither can only match by lap number.
+--   is_sc_lap / is_vsc_lap / is_red_flag_lap: the lap overlaps a period of
+--     that type in time (lap start < period end, lap end > period start), OR
+--     (races) its lap_number is within the period's start_lap..end_lap. The
+--     joins are EXISTS checks, so they can't add rows. Whole-second
+--     race-control times: SC and VSC periods get 1 s added to their end. Red
+--     flags end at the resumption, and laps starting at that second are the
+--     restart, not the stoppage, so they get no extra second.
+--   is_field_slow (races only; false in qualifying): most of the field is far
+--     slower than the session's typical pace on this lap number, and so is
+--     this lap. Evidence (27 November 2026, field median of non-pit laps per
+--     race lap number, as a ratio to the session's typical pace = median of
+--     non-pit laps after lap 1, outside logged periods and after-finish laps):
+--       lap numbers outside logged periods: median 1.000, 95th pct 1.026
+--       lap numbers in logged SC periods: 5th pct about 1.19, median 1.45
+--       normal lap 1s (standing start): 1.07-1.28; next value 1.78
+--     Thresholds: field median >= 1.25 x typical (lap 1: >= 1.40), with at
+--     least 5 laps timed on that lap number, AND this lap's own time over the
+--     same threshold (or missing). The second condition matters late in races:
+--     a VSC on the leader's lap 63 slows lapped cars' lap 62, so lap 62's
+--     field median is slow while the leaders' lap 62 was a racing lap
+--     (Barcelona 2026 lap 62, Zandvoort 2026 lap 54).
+--     It catches unlogged neutralizations: starts behind the Safety Car (Spa
+--     2025 laps 1-4, Kuala Lumpur 2026 laps 1-2) and the restart laps after
+--     red flags (Monza 2026 laps 5-6, Zandvoort 2026 lap 4, Mexico City 2026
+--     lap 47, Monte Carlo 2026 lap 70). Wet-weather laps (1.12-1.21) stay below
+--     the threshold.
+--   is_neutralized = is_sc_lap OR is_vsc_lap OR is_red_flag_lap OR is_field_slow.
+-- No other cleaning flags yet (garage time): later steps.
 -- The segments_sector_* lists stay in stg_laps.
 
 CREATE OR REPLACE TABLE fct_laps AS
@@ -128,7 +161,8 @@ chequered AS (
     FROM stg_race_control
     WHERE flag = 'CHEQUERED'
     GROUP BY session_key
-)
+),
+base AS (
 SELECT
     -- Session
     l.session_key,
@@ -194,4 +228,80 @@ LEFT JOIN stg_session_result AS r
   ON  r.session_key   = l.session_key
   AND r.driver_number = l.driver_number
 LEFT JOIN chequered AS ch
-  ON ch.session_key = l.session_key;
+  ON ch.session_key = l.session_key
+),
+lap_times AS (
+    -- Start and end of each lap for overlap checks, filling lap 1s that have
+    -- no date_start from the driver's next lap
+    SELECT
+        b.session_key, b.driver_number, b.lap_number,
+        coalesce(b.date_start,
+                 nxt.next_start - to_microseconds(CAST(round(b.lap_duration * 1000000) AS BIGINT))) AS t_start,
+        coalesce(b.lap_end_time, nxt.next_start) AS t_end
+    FROM base AS b
+    LEFT JOIN (
+        SELECT session_key, driver_number, lap_number,
+               lead(date_start) OVER (PARTITION BY session_key, driver_number ORDER BY lap_number) AS next_start
+        FROM stg_laps
+    ) AS nxt USING (session_key, driver_number, lap_number)
+),
+period_flags AS (
+    -- One row per lap: does it overlap (or fall in the lap range of) each period type?
+    SELECT
+        t.session_key, t.driver_number, t.lap_number,
+        bool_or(p.period_type = 'SC')  AS is_sc_lap,
+        bool_or(p.period_type = 'VSC') AS is_vsc_lap,
+        bool_or(p.period_type = 'RED') AS is_red_flag_lap
+    FROM lap_times AS t
+    JOIN neutral_periods AS p
+      ON p.session_key = t.session_key
+     AND (   (t.t_start < p.end_time + CASE WHEN p.period_type = 'RED' THEN INTERVAL 0 SECOND
+                                            ELSE INTERVAL 1 SECOND END
+              AND t.t_end > p.start_time)
+          OR t.lap_number BETWEEN p.start_lap AND p.end_lap)
+    GROUP BY t.session_key, t.driver_number, t.lap_number
+),
+typical_pace AS (
+    -- Each race's typical racing lap: median of non-pit laps after lap 1,
+    -- not after the finish, and not in a logged period
+    SELECT b.session_key, median(b.lap_duration) AS typical
+    FROM base AS b
+    LEFT JOIN period_flags AS f USING (session_key, driver_number, lap_number)
+    WHERE b.session_type = 'Race' AND b.lap_number > 1
+      AND NOT coalesce(b.is_pit_lap, false) AND NOT b.is_after_finish
+      AND f.session_key IS NULL
+    GROUP BY b.session_key
+),
+field_pace AS (
+    -- The field's median non-pit lap time on each race lap number
+    SELECT session_key, lap_number, median(lap_duration) AS field_median, count(lap_duration) AS timed
+    FROM base
+    WHERE session_type = 'Race' AND NOT coalesce(is_pit_lap, false) AND NOT is_after_finish
+    GROUP BY session_key, lap_number
+),
+field_slow AS (
+    -- is_field_slow per lap (thresholds and evidence in the header)
+    SELECT
+        b.session_key, b.driver_number, b.lap_number,
+        coalesce(
+            b.session_type = 'Race'
+            AND fp.timed >= 5
+            AND fp.field_median >= tp.typical * CASE WHEN b.lap_number = 1 THEN 1.40 ELSE 1.25 END
+            AND (b.lap_duration IS NULL
+                 OR b.lap_duration >= tp.typical * CASE WHEN b.lap_number = 1 THEN 1.40 ELSE 1.25 END),
+            false) AS is_field_slow
+    FROM base AS b
+    LEFT JOIN typical_pace AS tp USING (session_key)
+    LEFT JOIN field_pace AS fp USING (session_key, lap_number)
+)
+SELECT
+    b.*,
+    coalesce(f.is_sc_lap, false)       AS is_sc_lap,
+    coalesce(f.is_vsc_lap, false)      AS is_vsc_lap,
+    coalesce(f.is_red_flag_lap, false) AS is_red_flag_lap,
+    fs.is_field_slow,
+    coalesce(f.is_sc_lap, false) OR coalesce(f.is_vsc_lap, false)
+        OR coalesce(f.is_red_flag_lap, false) OR fs.is_field_slow AS is_neutralized
+FROM base AS b
+LEFT JOIN period_flags AS f USING (session_key, driver_number, lap_number)
+JOIN field_slow AS fs USING (session_key, driver_number, lap_number);

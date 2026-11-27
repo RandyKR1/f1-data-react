@@ -50,6 +50,34 @@ unique. Every join is on a key that is unique on the joined side.
 | `is_lap1` | Race (incl. sprint) lap 1 only; false in qualifying | Race lap 1 is the standing start (median 100.7 s against 98.1 s on lap 2). In qualifying all 918 lap 1s are garage out-laps already flagged by `is_pit_out_lap`, 808 with no time. |
 | `is_after_finish` | Race: lap starts at or after the last chequered flag, OR `lap_number > number_of_laps` for a driver still running at the end (not DNF/DNS/DSQ). Qualifying: starts at or after the last chequered flag | `lap_number > number_of_laps` alone marks 132 DNF retirement laps and 11 DNS laps, and in qualifying counts in/out laps (misses 240) and is 0 for deleted times (69). The chequered flag alone misses cool-down laps starting within a second of the flag, because race-control times are whole seconds (Spa 2026 #12 lap 45). Norris Melbourne 2025 lap 58 is flagged by both. |
 
+## `neutral_periods` (`sql/models/10_neutral_periods.sql`)
+
+One row per Safety Car, VSC or red-flag period (102 rows: SC 33, VSC 38, RED 31,
+of which 26 are in qualifying), built from `stg_race_control`. Key:
+`(session_key, period_type, start_time)`, unique.
+
+| Rule | Evidence |
+|---|---|
+| SC: from "SAFETY CAR DEPLOYED" to the leader's start of the lap after "SAFETY CAR IN THIS LAP" (the restart) | Same wording both seasons (deployed 17 / 16, in 16 / 13). The Safety Car comes in at the end of the announced lap. |
+| VSC: from "VIRTUAL SAFETY CAR DEPLOYED" (2025) / "VSC DEPLOYED" (2026) to the "TRACK CLEAR" after the ENDING message (within 60 s), else the ENDING message | The wording changed between seasons (13 / 25 deployments). TRACK CLEAR follows ENDING by 11 s at Monza and Madrid 2026. |
+| RED: from `flag = 'RED'` or a message starting "RED FLAG - " to the next "SESSION STARTED" (else "SESSION FINISHED") | 2025 races and all qualifying use `flag = 'RED'`; 2026 races log only "RED FLAG - RACE SUSPENDED" (4), with no flag value. Several red-flag messages before one resumption form one period. |
+| A period with no end message ends at the first of: red flag, (for a VSC) Safety Car, chequered flag | Monza 2026: SC on lap 3, red flag 54 s later. 3 SCs end with a red flag, 1 at the chequered flag, 1 VSC with an SC. |
+| start_lap / end_lap from the messages' lap_number; null in qualifying and for red flags before the race started | Spa 2025's red flag was before lap 1. |
+
+## `fct_laps` neutralization flags
+
+| Column | Rule | Evidence |
+|---|---|---|
+| `is_sc_lap`, `is_vsc_lap`, `is_red_flag_lap` | The lap overlaps a period in time (SC/VSC end + 1 s for whole-second times; red flags end exactly at the resumption), or (races) its lap number is in the period's lap range | Lap 1s with no `date_start` (70) get their end from the next lap's start and their start from end − duration. Time overlap also catches lapped cars, whose lap N runs later than the leader's (e.g. Monza 2026 lap 27 VSC for 10 lapped cars). |
+| `is_field_slow` | Races only: field median of non-pit laps on this lap number ≥ 1.25 × the session's typical pace (lap 1: ≥ 1.40), with ≥ 5 timed laps, AND this lap ≥ the same threshold or untimed | Field-median ratio outside logged periods: median 1.000, 95th percentile 1.026. In logged SC periods: 5th percentile ~1.19, median 1.45. Normal lap 1s: 1.07–1.28, next 1.78. Wet laps 1.12–1.21 stay below. The own-lap condition stops late-race VSCs on lapped cars from flagging the leaders' racing laps (Barcelona 2026 lap 62, Zandvoort 2026 lap 54). |
+| `is_neutralized` | `is_sc_lap OR is_vsc_lap OR is_red_flag_lap OR is_field_slow` | — |
+
+`is_field_slow` adds laps no logged period covers: starts behind the Safety
+Car (Spa 2025 laps 1-4, Kuala Lumpur 2026 laps 1-2) and restart laps after
+red flags (Monza 2026 laps 5-6, Zandvoort 2026 lap 4, Mexico City 2026 lap 47,
+Monte Carlo 2026 lap 70). Known false positive: 1 untimed lap (Barcelona 2026
+#12 lap 62, no time and no next lap, so it can't be placed in time).
+
 ## Planned (not yet applied)
 
 - Pace analysis excludes qualifying times where `position` is null

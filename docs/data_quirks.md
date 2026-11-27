@@ -423,6 +423,34 @@ and just one SC/VSC period.
   (lap 1), and "RACE WILL RESUME AT 16:20". Useful for testing red-flag
   detection.
 
+## Safety Car, VSC and red-flag messages (inventory, 27 November 2026)
+
+How neutralizations appear in `race_control` (2025-2026 Race and Qualifying):
+
+| | 2025 | 2026 |
+|---|---|---|
+| Safety Car | "SAFETY CAR DEPLOYED" / "SAFETY CAR IN THIS LAP" (17 / 16) | same wording (16 / 13) |
+| VSC | "VIRTUAL SAFETY CAR DEPLOYED" / "VIRTUAL SAFETY CAR ENDING" (13 / 13) | "VSC DEPLOYED" / "VSC ENDING" (25 / 24) |
+| Race red flag | `flag = 'RED'`, message "RED FLAG" (1, Spa, before the start) | **no flag value**, message "RED FLAG - RACE SUSPENDED" only (4) |
+| Qualifying red flag | `flag = 'RED'` (18) | `flag = 'RED'` (8) |
+| Resumption | "SESSION STARTED" (category SessionStatus) | same |
+
+- **Starts behind the Safety Car aren't logged as deployments.** "RACE WILL
+  START BEHIND THE SAFETY CAR" (Spa 2025) and "FORMATION LAP(S) BEHIND SAFETY
+  CAR" (Kuala Lumpur 2026) never get "SAFETY CAR DEPLOYED" or "IN THIS LAP".
+  Spa 2025 laps 1-4 ran at 1.6-1.9 × normal pace with no logged period.
+- **A Safety Car can end without "IN THIS LAP"**: at Monza 2026 the lap-3
+  Safety Car became a red flag 54 s later.
+- **Restart laps after a red flag aren't logged as neutralized**, but they run
+  at 1.7-2.3 × normal pace (formation and standing-start laps; Monza 2026
+  laps 5-6, Zandvoort 2026 lap 4, Mexico City 2026 lap 47, Monte Carlo 2026
+  lap 70).
+- **Lap numbers in race control are the leader's.** Lapped cars' lap N runs
+  later, so they can be under a VSC on a lap number the leader raced
+  (Barcelona 2026: VSC on the leader's lap 63 slows lapped cars' lap 62).
+- **Timestamps are whole seconds**, and "SESSION ABORTED" can be logged a
+  second before "RED FLAG - RACE SUSPENDED" (Monza 2026).
+
 ## Red flags aren't always in the `flag` column
 
 `race_control` logs red flags in more than one way:
