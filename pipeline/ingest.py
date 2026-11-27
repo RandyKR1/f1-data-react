@@ -20,6 +20,10 @@ Runs are incremental. A session + endpoint is skipped when:
     - its Parquet file already exists (unless --force, which needs --session-keys)
     - it's listed in data/raw/_no_data.csv (unless --retry-no-data; a retry that
       finds data saves it and removes the row from _no_data.csv)
+    - --skip-exported is given and the session already has an exported file at
+      public/data/sessions/<session_key>.json (unless --force). For scheduled
+      runs on a fresh checkout with no data/ folder: only new sessions are
+      downloaded.
 
 Examples (run from anywhere):
     python pipeline/ingest.py                              # everything new, 2023 to next year
@@ -30,6 +34,8 @@ Examples (run from anywhere):
     python pipeline/ingest.py --year 2025 --dry-run        # plan only, no requests
     python pipeline/ingest.py --force --session-keys 11420 # re-download one session
     python pipeline/ingest.py --retry-no-data              # retry logged 404s
+    python pipeline/ingest.py --year 2026 --session-name Race,Qualifying \
+        --skip-exported                                    # scheduled run
 """
 
 import argparse
@@ -219,6 +225,8 @@ _warned_columns = set()
 # so the script works no matter which folder you run it from.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = REPO_ROOT / "data" / "raw"
+# Session files written by export.py (used by --skip-exported)
+EXPORTED_SESSIONS_DIR = REPO_ROOT / "public" / "data" / "sessions"
 
 # Run logs (CSV, appended to on every run).
 NO_DATA_LOG = RAW_DIR / "_no_data.csv"
@@ -229,6 +237,7 @@ STATS = {
     "requests": 0, "files_saved": 0, "no_data": 0, "rate_limited": 0,
     "skipped_exists": 0,       # per-session file already saved
     "skipped_no_data": 0,      # listed in _no_data.csv (no --retry-no-data)
+    "skipped_exported": 0,     # session already exported (--skip-exported)
     "schedule_kept": 0,        # past-season schedule file already saved
     "retry_found": 0,          # --retry-no-data: data found, row removed
     "retry_still_none": 0,     # --retry-no-data: still 404
@@ -271,6 +280,10 @@ def parse_args():
     parser.add_argument("--retry-no-data", action="store_true",
                         help="re-request session + endpoint pairs listed in _no_data.csv "
                              "(found data is saved and its row removed)")
+    parser.add_argument("--skip-exported", action="store_true",
+                        help="skip sessions that already have an exported file at "
+                             "public/data/sessions/<session_key>.json (for scheduled "
+                             "runs without a data/ folder; --force still re-downloads)")
     parser.add_argument("--force", action="store_true",
                         help="re-download the selected sessions even if their files exist "
                              "(requires --session-keys)")
@@ -833,12 +846,19 @@ def session_file(endpoint, year, session_key):
     return RAW_DIR / endpoint / f"year={year}" / f"session_{session_key}.parquet"
 
 
-def plan_session_requests(sessions, chosen_endpoints, force=False, retry_no_data=False):
+def is_exported(session_key):
+    """True if export.py has written this session's file."""
+    return (EXPORTED_SESSIONS_DIR / f"{session_key}.json").exists()
+
+
+def plan_session_requests(sessions, chosen_endpoints, force=False, retry_no_data=False,
+                          skip_exported=False):
     """Decide, for each session and endpoint, whether to request it.
 
     Returns a list of dicts (session, endpoint, path, action), where action is:
       "fetch"          - not saved yet (or --force), so request it
       "retry"          - listed in _no_data.csv, re-requested (--retry-no-data)
+      "skip_exported"  - the session is already exported (--skip-exported, no --force)
       "skip_exists"    - its file already exists
       "skip_no_data"   - listed in _no_data.csv
     A real run and --dry-run both use this, so the dry run shows exactly what
@@ -847,9 +867,12 @@ def plan_session_requests(sessions, chosen_endpoints, force=False, retry_no_data
     no_data = load_no_data_pairs()
     plan = []
     for session in sessions.itertuples():
+        exported = skip_exported and not force and is_exported(session.session_key)
         for endpoint in endpoints_for(session.session_name, chosen_endpoints):
             path = session_file(endpoint, session.year, session.session_key)
-            if path.exists():
+            if exported:
+                action = "skip_exported"
+            elif path.exists():
                 action = "fetch" if force else "skip_exists"
             elif (endpoint, session.session_key) in no_data:
                 action = "retry" if retry_no_data else "skip_no_data"
@@ -866,8 +889,11 @@ def download_session_data(plan):
     """Request every planned session + endpoint marked "fetch" or "retry"."""
     STATS["skipped_exists"] += sum(p["action"] == "skip_exists" for p in plan)
     STATS["skipped_no_data"] += sum(p["action"] == "skip_no_data" for p in plan)
+    STATS["skipped_exported"] += sum(p["action"] == "skip_exported" for p in plan)
     print(f"Skipping {STATS['skipped_exists']} file(s) already saved and "
-          f"{STATS['skipped_no_data']} logged as no data")
+          f"{STATS['skipped_no_data']} logged as no data"
+          + (f", and {exported_sessions(plan)} exported session(s) "
+             f"({STATS['skipped_exported']} endpoint files)" if STATS["skipped_exported"] else ""))
     no_data = load_no_data_pairs()
 
     current_session = None
@@ -913,9 +939,15 @@ def format_duration(seconds):
 ACTION_LABELS = {
     "fetch": "request",
     "retry": "retry no-data",
+    "skip_exported": "skip: exported",
     "skip_exists": "skip: saved",
     "skip_no_data": "skip: no data",
 }
+
+
+def exported_sessions(plan):
+    """How many sessions in a plan were skipped as already exported."""
+    return len({p["session"].session_key for p in plan if p["action"] == "skip_exported"})
 
 
 def print_dry_run(sessions, session_plan, schedule_plan, args):
@@ -923,7 +955,8 @@ def print_dry_run(sessions, session_plan, schedule_plan, args):
     without contacting the API."""
     print("\n--- Dry run (no API requests made) ---")
     flags = [name for name, on in [("--force", args.force),
-                                   ("--retry-no-data", args.retry_no_data)] if on]
+                                   ("--retry-no-data", args.retry_no_data),
+                                   ("--skip-exported", args.skip_exported)] if on]
     print(f"Minimum session age: {args.min_age_hours:g} h"
           + (f"; flags: {' '.join(flags)}" if flags else ""))
 
@@ -959,6 +992,9 @@ def print_dry_run(sessions, session_plan, schedule_plan, args):
     print(f"  skipped, file already saved:  {counts['skip_exists']}")
     print(f"  skipped, logged as no data:   {counts['skip_no_data']}"
           + ("  (use --retry-no-data to retry)" if counts["skip_no_data"] else ""))
+    if args.skip_exported:
+        print(f"  skipped, already exported:    {counts['skip_exported']}"
+              f"  ({exported_sessions(session_plan)} session(s))")
     if args.skip_schedule:
         print(f"Schedule requests:    0  (--skip-schedule)")
     else:
@@ -977,7 +1013,7 @@ def print_dry_run(sessions, session_plan, schedule_plan, args):
 
 # --- Main ---------------------------------------------------------------------
 
-def print_summary():
+def print_summary(skip_exported=False):
     """Print the end-of-run counts, including what was skipped and why."""
     print("\n--- Run summary ---")
     print(f"Requests:           {STATS['requests']}")
@@ -989,6 +1025,8 @@ def print_summary():
     print("Skipped:")
     print(f"  file already saved:          {STATS['skipped_exists']}")
     print(f"  logged as no data:           {STATS['skipped_no_data']}")
+    if skip_exported:
+        print(f"  session already exported:    {STATS['skipped_exported']} endpoint files")
     print(f"  past-season schedule saved:  {STATS['schedule_kept']}")
     if STATS["retry_found"] or STATS["retry_still_none"]:
         print(f"Retried no-data:    {STATS['retry_found']} found, "
@@ -1010,7 +1048,8 @@ def main():
         sessions = select_sessions()
         print_dry_run(sessions,
                       plan_session_requests(sessions, args.endpoints,
-                                            args.force, args.retry_no_data),
+                                            args.force, args.retry_no_data,
+                                            args.skip_exported),
                       plan_schedule(years, args.skip_schedule), args)
         return
 
@@ -1035,12 +1074,13 @@ def main():
         # Step 2: decide which sessions to fetch, and which files are needed.
         sessions = select_sessions()
         print(f"Processing {len(sessions)} session(s)")
-        plan = plan_session_requests(sessions, args.endpoints, args.force, args.retry_no_data)
+        plan = plan_session_requests(sessions, args.endpoints, args.force, args.retry_no_data,
+                                     args.skip_exported)
 
         # Step 3: fetch what's missing (all chosen endpoints by default).
         download_session_data(plan)
     finally:
-        print_summary()
+        print_summary(args.skip_exported)
 
 
 if __name__ == "__main__":
