@@ -1,20 +1,25 @@
 """
 Build the modelled tables in data/f1.duckdb by running SQL files.
 
-Runs every .sql file in sql/staging/ in filename order (01_..., 02_..., ...)
-against data/f1.duckdb. For each file it prints the file name, how long it
-took, and the row count of the table it created (the last
-"CREATE OR REPLACE TABLE <name>" in the file). It stops at the first error.
+1. Runs load.py first (unless --no-load), because load.py rebuilds
+   data/f1.duckdb from the raw files from scratch, which removes any tables
+   built here. So staging is always rebuilt on top of a fresh load.
+2. Runs every .sql file in sql/staging/ in filename order (01_..., 02_...)
+   against data/f1.duckdb. For each file it prints the file name, how long it
+   took, and the row count of the table it created (the last
+   "CREATE OR REPLACE TABLE <name>" in the file). It stops at the first error.
 
-Run it after load.py: load.py rebuilds data/f1.duckdb from the raw files
-from scratch, which removes any tables built here.
+The DuckDB session time zone is set to UTC, so anything in the SQL that turns
+a TIMESTAMPTZ into a date, an hour or text uses UTC, not this machine's zone.
 
-Contacts no API: it only reads and writes the local database.
+Contacts no API: it only reads the raw files and the local database.
 
 Run from anywhere:
-    python pipeline/build.py
+    python pipeline/build.py             # load.py, then all SQL
+    python pipeline/build.py --no-load   # only rerun the SQL
 """
 
+import argparse
 import re
 import sys
 import time
@@ -22,6 +27,7 @@ import time
 import duckdb
 
 import ingest  # same folder: reuse the repo paths
+import load    # same folder: the raw-to-DuckDB load step
 
 # --- Settings -----------------------------------------------------------------
 
@@ -59,13 +65,34 @@ def run_file(con, path):
 
 # --- Main ---------------------------------------------------------------------
 
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
+    parser.add_argument("--no-load", action="store_true",
+                        help="skip load.py and only rerun the SQL files")
+    return parser.parse_args()
+
+
+def run_load():
+    """Rebuild data/f1.duckdb from the raw files (load.py); stop if it fails."""
+    print("=== load.py ===")
+    try:
+        load.build()
+    except Exception as error:
+        sys.exit(f"Load failed, database left unchanged; SQL not run: {error}")
+    print()
+
+
 def main():
+    args = parse_args()
     files = sql_files()
     if not files:
         sys.exit("No .sql files found in " + ", ".join(str(d) for d in SQL_DIRS))
-    print(f"Building {DB_PATH.relative_to(ingest.REPO_ROOT)} from {len(files)} SQL file(s)\n")
+    if not args.no_load:
+        run_load()
+    print(f"=== SQL: {len(files)} file(s) into {DB_PATH.relative_to(ingest.REPO_ROOT)} ===")
 
     con = duckdb.connect(str(DB_PATH))
+    con.execute("SET TimeZone = 'UTC'")   # dates and times in the SQL are UTC
     total_started = time.perf_counter()
     try:
         for path in files:
