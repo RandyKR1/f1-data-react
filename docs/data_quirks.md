@@ -29,6 +29,44 @@ In qualifying, `session_result.duration` and `gap_to_leader` are lists with
 one entry per part, for example `[q1, q2, q3]`. Entries can be empty for parts
 a driver didn't reach. In races the same fields are single values.
 
+## `session_result` odd rows (inventory of all 1,877 rows, 27 November 2026)
+
+Found while building `stg_session_result` (2025-2026 Race and Qualifying):
+
+- **Q2 or Q3 times without a Q1 time, no position, and no flags.** Four
+  qualifying rows have Q2 (and sometimes Q3) times but no Q1 time, a null
+  `position`, `number_of_laps = 0`, and `dnf`, `dns` and `dsq` all false.
+  Their times seem to have been thrown out after the session, but OpenF1
+  doesn't flag them as disqualified.
+  - Albon and Sainz, Marina Bay 2025: `[null, 90.202, null]` and
+    `[null, 90.235, null]`
+  - Hadjar, Miami Gardens 2026: `[null, 88.941, 88.789]`
+  - Lawson, Mexico City 2026: `[null, 77.207, 77.029]`
+- **Bearman, Las Vegas 2026 Qualifying:** has a Q1 time (`108.005`) but a null
+  `position`, again with no flags set.
+- **Unclassified finishers:** a race row can have a null `position` *and* a
+  laps-behind gap. These are cars still running at the flag but too far behind
+  to be classified, so the laps-behind value can be large: Stroll `"+15 LAPS"`
+  (Melbourne 2026), Albon `"+11 LAPS"` (Barcelona 2026).
+- **The winner's gap is the integer `0`**, not `0.0`. Every other numeric gap
+  is a float (all 45 race winners). `stg_session_result` decodes it as `0.0`.
+- **Disqualified race rows have no `number_of_laps`:** all 6 such rows are
+  `dsq = true`: Hulkenberg (Sakhir 2025), Gasly, Leclerc and Hamilton
+  (Shanghai 2025), Norris and Piastri (Las Vegas 2025).
+- **`"RT"` is the only text code in `position`** (Hadjar, Marina Bay 2026
+  Qualifying). Other outcomes come only from the `dnf` / `dns` / `dsq` flags
+  or a null position. They're never text codes.
+
+### Planned rules (not applied in staging)
+
+- **Pace analysis excludes qualifying times where `position` is null.** That
+  removes the rows above, whose times didn't count, and also DNS and other
+  unclassified rows.
+- **The Step 3 complete results table gets one `result_status` column** that
+  summarizes each row: for example `Finished`, `Lapped`, `Not classified`,
+  `DNF`, `DNS`, `DSQ`, or the text code itself (`RT`). Then nobody has to
+  combine `position`, `laps_behind` and the three flags by hand.
+
 ## How ingest stores these
 
 - `session_result.duration`, `session_result.gap_to_leader` and
