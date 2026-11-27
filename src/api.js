@@ -51,11 +51,8 @@ export const getErrorMessage = (error) => {
 export const getDrivers = (sessionKey) => fetchData("drivers", { session_key: sessionKey }, "Driver Data");
 export const getLaps = (sessionKey) => fetchData("laps", { session_key: sessionKey }, "Laps");
 export const getPosition = (sessionKey) => fetchData("position", { session_key: sessionKey }, "Position Data");
-export const getRaceControl = (sessionKey) => fetchData("race_control", { session_key: sessionKey }, "Race Control Data");
 export const getSessionResult = (sessionKey) => fetchData("session_result", { session_key: sessionKey }, "Session Results");
 export const getStints = (sessionKey) => fetchData("stints", { session_key: sessionKey }, "Stints Data");
-export const getTeamRadio = (sessionKey) => fetchData("team_radio", { session_key: sessionKey }, "Team Radio Data");
-export const getWeather = (sessionKey) => fetchData("weather", { session_key: sessionKey }, "Weather Data");
 
 // Single records, filtered on the server instead of downloading everything
 export const getSession = async (sessionKey) =>
@@ -148,6 +145,27 @@ const getLocalSession = (key) => {
     if (!localSessionRequests.has(key)) localSessionRequests.set(key, fetchLocalSession(key));
     return localSessionRequests.get(key);
 };
+
+// One endpoint's rows from the local session file, or null to use the API.
+// Shares getLocalSession's cached fetch, so the file is downloaded once per
+// session however many sections ask for it.
+async function localRows(sessionKey, endpoint) {
+    if (!(await isExported(sessionKey))) return null;
+    const file = await getLocalSession(Number(sessionKey));
+    return Array.isArray(file?.[endpoint]) ? file[endpoint] : null;
+}
+
+// Local-first: the session file in "local" mode for exported sessions,
+// otherwise (or if the file fails) the OpenF1 API, exactly as before.
+export const getWeather = async (sessionKey) =>
+    (await localRows(sessionKey, "weather")) ??
+    fetchData("weather", { session_key: sessionKey }, "Weather Data");
+export const getRaceControl = async (sessionKey) =>
+    (await localRows(sessionKey, "race_control")) ??
+    fetchData("race_control", { session_key: sessionKey }, "Race Control Data");
+export const getTeamRadio = async (sessionKey) =>
+    (await localRows(sessionKey, "team_radio")) ??
+    fetchData("team_radio", { session_key: sessionKey }, "Team Radio Data");
 
 // The results-page data from the local file, or null to use the API instead.
 // isExported() is always false in "api" mode, so this never fetches there.
