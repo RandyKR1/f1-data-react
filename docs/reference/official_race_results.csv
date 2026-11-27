@@ -1,0 +1,46 @@
+season,grand_prix,date,winner,team,laps,source_url,retrieved_on
+2025,Australia,2025-03-16,Lando Norris,McLaren,57,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,China,2025-03-23,Oscar Piastri,McLaren,56,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Japan,2025-04-06,Max Verstappen,Red Bull Racing,53,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Bahrain,2025-04-13,Oscar Piastri,McLaren,57,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Saudi Arabia,2025-04-20,Oscar Piastri,McLaren,50,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Miami,2025-05-04,Oscar Piastri,McLaren,57,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Emilia-Romagna,2025-05-18,Max Verstappen,Red Bull Racing,63,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Monaco,2025-05-25,Lando Norris,McLaren,78,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Spain,2025-06-01,Oscar Piastri,McLaren,66,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Canada,2025-06-15,George Russell,Mercedes,70,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Austria,2025-06-29,Lando Norris,McLaren,70,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Great Britain,2025-07-06,Lando Norris,McLaren,52,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Belgium,2025-07-27,Oscar Piastri,McLaren,44,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Hungary,2025-08-03,Lando Norris,McLaren,70,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Netherlands,2025-08-31,Oscar Piastri,McLaren,72,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Italy,2025-09-07,Max Verstappen,Red Bull Racing,53,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Azerbaijan,2025-09-21,Max Verstappen,Red Bull Racing,51,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Singapore,2025-10-05,George Russell,Mercedes,62,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,United States,2025-10-19,Max Verstappen,Red Bull Racing,56,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Mexico,2025-10-26,Lando Norris,McLaren,71,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Brazil,2025-11-09,Lando Norris,McLaren,71,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Las Vegas,2025-11-22,Max Verstappen,Red Bull Racing,50,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Qatar,2025-11-30,Max Verstappen,Red Bull Racing,57,https://www.formula1.com/en/results/2025/races,2026-11-27
+2025,Abu Dhabi,2025-12-07,Max Verstappen,Red Bull Racing,58,https://www.formula1.com/en/results/2025/races,2026-11-27
+2026,Australia,2026-03-08,George Russell,Mercedes,58,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,China,2026-03-15,Kimi Antonelli,Mercedes,56,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Japan,2026-03-29,Kimi Antonelli,Mercedes,53,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Miami,2026-05-03,Kimi Antonelli,Mercedes,57,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Canada,2026-05-24,Kimi Antonelli,Mercedes,68,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Monaco,2026-06-07,Kimi Antonelli,Mercedes,78,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Barcelona-Catalunya,2026-06-14,Lewis Hamilton,Ferrari,66,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Austria,2026-06-28,George Russell,Mercedes,71,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Great Britain,2026-07-05,Charles Leclerc,Ferrari,52,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Belgium,2026-07-19,Kimi Antonelli,Mercedes,44,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Hungary,2026-07-26,Lando Norris,McLaren,70,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Netherlands,2026-08-23,Lando Norris,McLaren,72,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Italy,2026-09-06,Kimi Antonelli,Mercedes,53,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Spain,2026-09-13,Kimi Antonelli,Mercedes,57,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Azerbaijan,2026-09-26,George Russell,Mercedes,51,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Bahrain,2026-10-04,Max Verstappen,Red Bull Racing,55,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Singapore,2026-10-11,Max Verstappen,Red Bull Racing,62,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,United States,2026-10-25,Kimi Antonelli,Mercedes,56,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Mexico,2026-11-01,Max Verstappen,Red Bull Racing,71,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Brazil,2026-11-08,Lando Norris,McLaren,71,https://www.formula1.com/en/results/2026/races,2026-11-27
+2026,Las Vegas,2026-11-21,Max Verstappen,Red Bull Racing,50,https://www.formula1.com/en/results/2026/races,2026-11-27

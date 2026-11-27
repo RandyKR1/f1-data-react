@@ -277,6 +277,33 @@ minute**. The per-minute limit is the one that matters for bulk downloads.
   "Bahrain", while every other Sakhir meeting uses "Sakhir" (same
   `circuit_key` 63).
 
+## Checked against formula1.com: race winners and lap counts all match
+
+`pipeline/check_official_results.py` compares our Race sessions with
+`docs/reference/official_race_results.csv`, the official results from
+formula1.com for 2025-2026, entered by hand on 27 November 2026. Result: all
+45 official races match our P1 driver, team and the winner's `number_of_laps`.
+There are no official races we lack. The 4 Race sessions not in the official
+list are the cancelled Bahrain and Saudi Arabia 2026 rounds and the
+not-yet-run Qatar and Abu Dhabi 2026. What it showed:
+
+- **Match races by local date, not by name or UTC date.** formula1.com dates
+  are local race dates; use `date_start + gmt_offset`. Las Vegas runs on
+  Saturday night locally, which is already Sunday in UTC (2025: 22 Nov local,
+  23 Nov UTC).
+- **Names differ between OpenF1 and formula1.com:**
+  - The 2026 Kuala Lumpur race (session 11731) is "Bahrain Grand Prix" in
+    OpenF1 and "Bahrain" on formula1.com (see the 2026 schedule changes above).
+  - Madrid 2026 is "Spanish Grand Prix" / "Spain".
+  - Barcelona 2026 is "Barcelona Grand Prix" in OpenF1 but
+    "Barcelona-Catalunya" on formula1.com.
+- **The winner's `number_of_laps` is the official race distance,** even where
+  `laps` has an extra lap: Norris, Melbourne 2025 is 57 in both, despite a
+  recorded lap 58.
+- **Driver and team names line up:** `first_name || ' ' || last_name` equals
+  the formula1.com winner name (e.g. "Kimi Antonelli"), and `team_name`
+  equals the formula1.com team for every winner.
+
 ## `location` names change between seasons: group venues by `circuit_key`
 
 OpenF1 names the 2026 Monaco round's `location` **"Monte Carlo"**, while
