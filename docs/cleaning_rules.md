@@ -101,6 +101,28 @@ Sakhir 2025 (his Q1 lap was deleted after Q1, dropping him to P16, so his Q2
 laps were void; 91.693 s counted here) and Bearman, Imola 2025 (76.077 s lap
 ending at the red flag, logged only as "LAP TIME ... UNDER REVIEW").
 
+## `fct_laps` garage-time, outlier and clean-lap flags
+
+| Column | Rule | Evidence |
+|---|---|---|
+| `is_garage_time` | Qualifying: `lap_duration >= 2.15 ×` the session's fastest lap | Ratio to session best: flying laps 1.00–1.10, out/in/cool-down laps tail off from 1.3, garage laps form a second group from ~2.3 to ~1,500 s; the trough is at 2.15–2.20 (9 and 11 laps per 0.05 bin vs 18–52 around it). 2.15 × a typical 83.5 s best is ~180 s, a minute more than a slow out-lap. 2,962 laps; 388 aren't caught by the pit flags (Melbourne 2025 73, Montréal 2025 73, Melbourne 2026 64, Montréal 2026 60, Monaco 2025 54, Monte Carlo 2026 53, others 5). Melbourne 2025: 73 of its 74 long unmarked laps (the 74th is 2.13 ×). |
+| `is_outlier` | Races, among laps not excluded by another flag (timed, not pit, not lap 1, not after finish, not neutralized, not deleted): `lap_duration >= 1.12 ×` the median of the same driver's such laps in the same stint | 42,379 such laps: median ratio 1.000, 99th percentile 1.043. Per 0.01 bin the count falls smoothly 403 (1.03) … 12 (1.10), 5 (1.11), 3 (1.12), then a flat sparse tail (11, 3, 6, 8, 2 … to 1.85): the cut is at that minimum. 59 laps (2025: 13, 2026: 46): yellow-flag incidents, blue-flag traffic, wet early-stint laps. |
+| `is_clean_lap` | Timed AND not pit AND not lap 1 AND not after finish AND not neutralized AND not deleted AND not garage time AND not outlier. Compound not required | — |
+
+**Sanity check (27 November 2026):** clean-lap share is 84.9% (2025) / 81.3%
+(2026) of race laps and 59.7% / 63.4% of qualifying laps. Race exclusions,
+by first reason: neutralized 42.6%, pit 38.0%, lap 1 10.1%, deleted 6.9%, no
+time 1.7%, outlier 0.7%. Qualifying: pit (out-laps) 61.5%, no time 24.3%,
+deleted 5.8%, garage time 5.2%, neutralized 1.8%, after finish 1.3%.
+Madrid 2026: median clean lap per driver vs finishing position has a
+Spearman rank correlation of 0.926.
+
+**Caveat, qualifying:** qualifying in-laps can't be identified (see
+`is_pit_in_lap`), and there is no outlier rule for qualifying, so "clean"
+qualifying laps include in-laps and cool-down laps run before the flag, not
+just flying laps. For qualifying pace, use the official Q times in
+`stg_session_result` or a flying-lap filter on top of `is_clean_lap`.
+
 ## Planned (not yet applied)
 
 - Pace analysis excludes qualifying times where `position` is null

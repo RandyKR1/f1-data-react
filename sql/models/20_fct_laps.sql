@@ -124,7 +124,43 @@
 -- couldn't be matched to a lap (35 of 1,145, mostly qualifying messages with
 -- no lap number or time, and Baku 2025 Qualifying, which has no lap data)
 -- aren't flagged.
--- No other cleaning flags yet (garage time): later steps.
+--
+-- is_garage_time (qualifying only): the lap includes time in the garage
+-- between runs. Rule: lap_duration >= 2.15 x the session's fastest lap.
+-- Evidence (27 November 2026, qualifying laps as a ratio to the session's
+-- fastest): flying laps 1.00-1.10, out/in/cool-down laps tail off from 1.3;
+-- laps with garage time form a second group from about 2.3 up to ~1,500 s.
+-- The fewest laps in between are at 2.15-2.20 (9 and 11 laps per 0.05 bin, vs
+-- 18-52 on either side), so the cut is 2.15. For a typical fastest lap of
+-- 83.5 s that is ~180 s: a minute more than even a slow out-lap, while a
+-- pit-lane pass alone costs ~18 s. Many such laps aren't is_pit_out_lap
+-- (Melbourne 2025: 74 laps; also Montréal 2025/2026, Melbourne 2026, Monaco
+-- 2025, Monte Carlo 2026), so this doesn't rely on the pit flags.
+--
+-- is_outlier (races only): a lap much slower than the same driver's typical
+-- pace in the same stint (mistakes, traffic, damage). Only laps not already
+-- excluded by another flag are considered (timed, not pit, not lap 1, not
+-- after the finish, not neutralized, not deleted); the stint's typical pace
+-- is the median of those laps. Rule: lap_duration >= 1.12 x that median.
+-- Evidence (42,379 such race laps): median ratio 1.000, 99th pct 1.043; the
+-- count per 0.01 bin falls smoothly 403 (1.03), 190, 94, 55, 41, 28, 15, 12,
+-- 5 (1.11) to 3 (1.12), then a flat sparse tail (11, 3, 6, 8, 2, ... up to
+-- 1.85). The cut sits at that minimum: 1.12 x, about +11 s on a 90 s lap.
+-- The tail is yellow-flag incidents, blue-flag traffic and wet early-stint
+-- laps (e.g. Kuala Lumpur 2026 laps 3-7).
+--
+-- is_clean_lap: a representative racing lap. True only if ALL of:
+--   lap_duration is not null            (it has a time)
+--   NOT is_pit_lap                      (not a pit in- or out-lap; unknown
+--                                        in-laps in qualifying count as not pit)
+--   NOT is_lap1                         (not the race's standing-start lap)
+--   NOT is_after_finish                 (not a cool-down lap)
+--   NOT is_neutralized                  (no SC, VSC, red flag or slow field)
+--   NOT is_deleted                      (time not deleted by race control)
+--   NOT is_garage_time                  (qualifying: no garage time inside)
+--   NOT is_outlier                      (races: not an abnormally slow lap)
+-- A known compound is NOT required; analyses that need one filter on
+-- compound separately.
 -- The segments_sector_* lists stay in stg_laps.
 
 CREATE OR REPLACE TABLE fct_laps AS
@@ -310,7 +346,8 @@ field_slow AS (
     FROM base AS b
     LEFT JOIN typical_pace AS tp USING (session_key)
     LEFT JOIN field_pace AS fp USING (session_key, lap_number)
-)
+),
+flagged AS (
 SELECT
     b.*,
     coalesce(f.is_sc_lap, false)       AS is_sc_lap,
@@ -323,4 +360,60 @@ SELECT
 FROM base AS b
 LEFT JOIN period_flags AS f USING (session_key, driver_number, lap_number)
 JOIN field_slow AS fs USING (session_key, driver_number, lap_number)
-LEFT JOIN deleted_laps AS dl USING (session_key, driver_number, lap_number);
+LEFT JOIN deleted_laps AS dl USING (session_key, driver_number, lap_number)
+),
+quali_best AS (
+    -- Each qualifying session's fastest lap
+    SELECT session_key, min(lap_duration) AS best
+    FROM flagged
+    WHERE session_type = 'Qualifying'
+    GROUP BY session_key
+),
+outlier_pool AS (
+    -- Race laps not already excluded by another flag: the only laps that can
+    -- be outliers, and the laps a stint's typical pace is measured on
+    SELECT *
+    FROM flagged
+    WHERE session_type = 'Race'
+      AND lap_duration IS NOT NULL
+      AND NOT coalesce(is_pit_lap, false)
+      AND NOT is_lap1
+      AND NOT is_after_finish
+      AND NOT is_neutralized
+      AND NOT is_deleted
+      AND stint_number IS NOT NULL
+),
+stint_pace AS (
+    -- Typical pace per driver per stint: median of the pool's laps
+    SELECT session_key, driver_number, stint_number, median(lap_duration) AS stint_median
+    FROM outlier_pool
+    GROUP BY session_key, driver_number, stint_number
+),
+outliers AS (
+    SELECT o.session_key, o.driver_number, o.lap_number
+    FROM outlier_pool AS o
+    JOIN stint_pace AS sp USING (session_key, driver_number, stint_number)
+    WHERE o.lap_duration >= 1.12 * sp.stint_median
+),
+final AS (
+    SELECT
+        fl.*,
+        coalesce(fl.session_type = 'Qualifying'
+                 AND fl.lap_duration >= 2.15 * qb.best, false) AS is_garage_time,
+        ol.lap_number IS NOT NULL                              AS is_outlier
+    FROM flagged AS fl
+    LEFT JOIN quali_best AS qb USING (session_key)
+    LEFT JOIN outliers AS ol USING (session_key, driver_number, lap_number)
+)
+SELECT
+    *,
+    -- Each condition is explained in the header (is_clean_lap)
+    lap_duration IS NOT NULL
+    AND NOT coalesce(is_pit_lap, false)
+    AND NOT is_lap1
+    AND NOT is_after_finish
+    AND NOT is_neutralized
+    AND NOT is_deleted
+    AND NOT is_garage_time
+    AND NOT is_outlier AS is_clean_lap
+FROM final;
