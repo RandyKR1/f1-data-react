@@ -11,7 +11,9 @@
 --                 are only unique within a session, and (session_key,
 --                 driver_number) is unique in stg_drivers, so each lap matches
 --                 at most one driver. A lap with no driver row keeps nulls.
---   stg_stints    A lap can fall inside zero, one or several stints when the
+--   stints_clean  (sql/models/12_stints_clean.sql: stray and zero-length
+--                 stints removed, DNF last stints extended by one lap.)
+--                 A lap can fall inside zero, one or several stints when the
 --                 stint data is garbled (overlapping or backwards lap ranges).
 --                 Joining stints directly would repeat such laps, so matches
 --                 are first collapsed to one row per lap (stint_matches), and
@@ -20,7 +22,8 @@
 --                 the same session and driver. stint_match_count says how many
 --                 matched; the stint columns are filled only when exactly one
 --                 did, and left null otherwise (no guessing between stints).
---   stg_pit       Reduced to one row per (session_key, driver_number,
+--   pit_clean     (stg_pit without rows for cars not in the session.)
+--                 Reduced to one row per (session_key, driver_number,
 --                 lap_number) with DISTINCT (pit_in_laps), then LEFT JOINed on
 --                 the lap's natural key: at most one row per lap.
 --   stg_session_result  LEFT JOIN on (session_key, driver_number), unique in
@@ -149,6 +152,28 @@
 -- The tail is yellow-flag incidents, blue-flag traffic and wet early-stint
 -- laps (e.g. Kuala Lumpur 2026 laps 3-7).
 --
+-- stint_reliable: false for every lap of a driver whose stints are still
+-- garbled (stints_clean.stint_reliable; Melbourne 2025 and Kuala Lumpur 2026
+-- wet starts). The stint columns are still filled by the exactly-one-match
+-- rule, but analyses using compound or tyre age should filter on it. Null for
+-- a driver with no stints at all (Piastri, Melbourne 2026, DNS).
+--
+-- is_flying_lap (qualifying only; false in races): a push lap. Each lap is
+-- assigned to its qualifying part (Q1/Q2/Q3) by the qualifying_phase of the
+-- latest race-control message at or before the lap's end (laps before the
+-- first such message are Q1). Rule: timed, not a pit or garage-time lap, and
+-- lap_duration < 1.07 x the fastest non-deleted lap of the same part.
+-- Evidence (27 November 2026): relative to the part's fastest lap, the
+-- count of non-pit, non-garage laps per 0.01 bin falls 512 (1.02), 216, 108,
+-- 76, 43 to 38 at 1.07, stays flat to 1.10 (57, 43, 42), then the slow laps
+-- (in-laps, cool-down laps) build up from 1.11. The part, not the whole
+-- session, is the reference because the track changes between parts: against
+-- the session's fastest lap, official Q times reach 1.171 (São Paulo 2026,
+-- wet); against their part's fastest, 2,012 of the 2,022 official times that
+-- appear as laps are within 1.06. The two official times above 1.07 aren't
+-- flagged: Bearman, Las Vegas 2026 Q1 (1.141; the result gives him no
+-- position) and Bortoleto, São Paulo 2026 Q1 (1.117, wet).
+--
 -- is_clean_lap: a representative racing lap. True only if ALL of:
 --   lap_duration is not null            (it has a time)
 --   NOT is_pit_lap                      (not a pit in- or out-lap; unknown
@@ -159,6 +184,8 @@
 --   NOT is_deleted                      (time not deleted by race control)
 --   NOT is_garage_time                  (qualifying: no garage time inside)
 --   NOT is_outlier                      (races: not an abnormally slow lap)
+--   is_flying_lap, in qualifying        (qualifying: a push lap, not an in-lap
+--                                        or cool-down lap)
 -- A known compound is NOT required; analyses that need one filter on
 -- compound separately.
 -- The segments_sector_* lists stay in stg_laps.
@@ -177,16 +204,22 @@ WITH stint_matches AS (
         CASE WHEN count(*) = 1
              THEN min(st.tyre_age_at_start + l.lap_number - st.lap_start) END AS tyre_age_on_lap
     FROM stg_laps AS l
-    JOIN stg_stints AS st
+    JOIN stints_clean AS st
       ON  st.session_key   = l.session_key
       AND st.driver_number = l.driver_number
       AND l.lap_number BETWEEN st.lap_start AND st.lap_end
     GROUP BY l.session_key, l.driver_number, l.lap_number
 ),
+driver_stints AS (
+    -- One row per driver per session: are all their stints reliable?
+    SELECT session_key, driver_number, bool_and(stint_reliable) AS stint_reliable
+    FROM stints_clean
+    GROUP BY session_key, driver_number
+),
 pit_sessions AS (
     -- Race sessions that have pit data, so a missing pit row means "no stop"
     SELECT DISTINCT p.session_key
-    FROM stg_pit AS p
+    FROM pit_clean AS p
     JOIN stg_sessions AS s USING (session_key)
     WHERE s.session_type = 'Race'
 ),
@@ -194,7 +227,7 @@ pit_in_laps AS (
     -- Race in-laps: one row per lap that ended in the pit lane. Pit-lane
     -- starts (no lane_duration) aren't stops and are left out.
     SELECT DISTINCT p.session_key, p.driver_number, p.lap_number
-    FROM stg_pit AS p
+    FROM pit_clean AS p
     JOIN pit_sessions USING (session_key)
     WHERE p.lane_duration IS NOT NULL
 ),
@@ -251,7 +284,8 @@ SELECT
     m.stint_number,
     m.compound,
     m.tyre_age_on_lap,
-    coalesce(m.stint_match_count, 0) AS stint_match_count
+    coalesce(m.stint_match_count, 0) AS stint_match_count,
+    ds.stint_reliable
 FROM stg_laps AS l
 LEFT JOIN stg_sessions AS s
   ON s.session_key = l.session_key
@@ -268,6 +302,9 @@ LEFT JOIN pit_in_laps AS pi
   ON  pi.session_key   = l.session_key
   AND pi.driver_number = l.driver_number
   AND pi.lap_number    = l.lap_number
+LEFT JOIN driver_stints AS ds
+  ON  ds.session_key   = l.session_key
+  AND ds.driver_number = l.driver_number
 LEFT JOIN stg_session_result AS r
   ON  r.session_key   = l.session_key
   AND r.driver_number = l.driver_number
@@ -395,7 +432,7 @@ outliers AS (
     JOIN stint_pace AS sp USING (session_key, driver_number, stint_number)
     WHERE o.lap_duration >= 1.12 * sp.stint_median
 ),
-final AS (
+with_garage AS (
     SELECT
         fl.*,
         coalesce(fl.session_type = 'Qualifying'
@@ -404,6 +441,37 @@ final AS (
     FROM flagged AS fl
     LEFT JOIN quali_best AS qb USING (session_key)
     LEFT JOIN outliers AS ol USING (session_key, driver_number, lap_number)
+),
+lap_part AS (
+    -- Qualifying part of each lap: the latest race-control qualifying_phase at
+    -- or before the lap's end (Q1 before the first one). One row per lap.
+    SELECT t.session_key, t.driver_number, t.lap_number,
+           coalesce(rc.qualifying_phase, 1) AS qualifying_part
+    FROM lap_times AS t
+    ASOF LEFT JOIN (SELECT session_key, date, qualifying_phase
+                    FROM stg_race_control WHERE qualifying_phase IS NOT NULL) AS rc
+      ON rc.session_key = t.session_key AND t.t_end >= rc.date
+),
+part_best AS (
+    -- Fastest non-deleted lap of each qualifying part
+    SELECT g.session_key, lp.qualifying_part, min(g.lap_duration) AS best
+    FROM with_garage AS g
+    JOIN lap_part AS lp USING (session_key, driver_number, lap_number)
+    WHERE g.session_type = 'Qualifying' AND NOT g.is_deleted
+    GROUP BY g.session_key, lp.qualifying_part
+),
+final AS (
+    SELECT
+        g.*,
+        CASE WHEN g.session_type = 'Qualifying' THEN lp.qualifying_part END AS qualifying_part,
+        coalesce(g.session_type = 'Qualifying'
+                 AND g.lap_duration IS NOT NULL
+                 AND NOT coalesce(g.is_pit_lap, false)
+                 AND NOT g.is_garage_time
+                 AND g.lap_duration < 1.07 * pb.best, false) AS is_flying_lap
+    FROM with_garage AS g
+    LEFT JOIN lap_part AS lp USING (session_key, driver_number, lap_number)
+    LEFT JOIN part_best AS pb ON pb.session_key = g.session_key AND pb.qualifying_part = lp.qualifying_part
 )
 SELECT
     *,
@@ -415,5 +483,6 @@ SELECT
     AND NOT is_neutralized
     AND NOT is_deleted
     AND NOT is_garage_time
-    AND NOT is_outlier AS is_clean_lap
+    AND NOT is_outlier
+    AND (session_type <> 'Qualifying' OR is_flying_lap) AS is_clean_lap
 FROM final;
